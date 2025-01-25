@@ -23,6 +23,14 @@ c. API + run commands to FM Playground (source from tasks)
 
 a. supported datatypes (boolean, int, ???)
 
+## Project requires local Z3 setup
+
+Note that Z3 is not available as a Maven dependency, so we need to manually add it to the project.
+
+1. Download Z3 from [here](https://github.com/Z3Prover/z3)
+2. Update `build.gradle`: gradle implementation files ('path/to/your/com.microsoft.z3.jar'), applicationDefaultJvmArgs = ["-Djava.library.path=path/to/your/z3/bin"]
+3. Ensure Z3's native library `libz3.dll` (Windows) is in your system PATH or the specified `java.library.path`
+
 **Questions**
 
 a. what is the required output? -SMT Formula? "representation in a single model like structure"
