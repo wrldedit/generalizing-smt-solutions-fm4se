@@ -16,17 +16,12 @@ import java.io.IOException;
 
 public class SmtLibInputParser {
 
-    private final SolverContext context;
+    protected final SolverContext context;
     private final FormulaManager formulaManager;
 
     public SmtLibInputParser() throws IOException, InvalidConfigurationException 
     {
-        // Create configuration with explicit solver settings
-        Configuration config = Configuration.builder()
-            .setOption("solver.solver", "z3")
-            .setOption("solver.z3.path", detectZ3Path())
-            .build();
-        
+        Configuration config = Configuration.defaultConfiguration();
         LogManager logger = BasicLogManager.create(config);
         ShutdownManager shutdown = ShutdownManager.create();
         
@@ -37,20 +32,6 @@ public class SmtLibInputParser {
             Solvers.Z3
         );
         this.formulaManager = context.getFormulaManager();
-    }
-
-    private String detectZ3Path() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        String userDir = System.getProperty("user.dir");
-        
-        if (osName.contains("windows")) {
-            return "C:/Users/Fritz Trede/z3-4.8.9-x64-win/bin/z3.exe";
-        } else if (osName.contains("linux")) {
-            return "/usr/bin/z3";
-        } else if (osName.contains("mac")) {
-            return "/usr/local/bin/z3";
-        }
-        throw new RuntimeException("Unsupported operating system");
     }
 
     /**
@@ -69,6 +50,23 @@ public class SmtLibInputParser {
         catch (Exception e) 
         {
             throw new IllegalArgumentException("Invalid SMT-LIB input: " + e.getMessage(),e);
+        }
+    }
+
+    /**
+     * Validates the parsed formula and checks satisfiability.
+     * 
+     * @param formula The parsed BooleanFormula to validate
+     * @return true if the formula is satisfiable, false otherwise
+     */
+    public boolean validateFormula(BooleanFormula formula) {
+        try (ProverEnvironment prover = context.newProverEnvironment()) {
+            prover.addConstraint(formula);
+            return !prover.isUnsat();
+        } 
+        catch (Exception e) 
+        {
+            throw new RuntimeException("Error validating formula: " + e.getMessage(), e);
         }
     }
     

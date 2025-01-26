@@ -12,6 +12,10 @@ import org.sosy_lab.common.log.BasicLogManager;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.ShutdownManager;
 import org.sosy_lab.java_smt.api.SolverContext.ProverOptions;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.java_smt.api.SolverException;
+
+import java.io.IOException;
 
 public class App {
 
@@ -21,7 +25,7 @@ public class App {
 
     public static void main(String[] args) {
         // Add debugging information
-        System.out.println("Java Library Path: " + System.getProperty("java.library.path"));
+        /* System.out.println("Java Library Path: " + System.getProperty("java.library.path"));
         System.out.println("Working Directory: " + System.getProperty("user.dir"));
         
         try {
@@ -89,6 +93,41 @@ public class App {
             context.close();
         } catch (Exception e) {
             e.printStackTrace();
+        } */
+
+        try 
+        {
+            SmtLibInputParser parser = new SmtLibInputParser();
+
+            String smtLibInput = 
+                "(declare-const x Int) " +
+                "(declare-const y Int) " +
+                "(assert (and (> (+ x y) 10) (< x 5)))";  // Combine assertions with 'and'
+
+            BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
+            boolean isSat = parser.validateFormula(formula);
+            System.out.println("Formula satisfiable? " + isSat);
+
+            FormulaExecutor executor = new FormulaExecutor(parser);
+            Model model = executor.getSingleSolution(smtLibInput);
+            System.out.println("Single solution: " + model);
+        }
+        catch (IOException e)
+        {
+            System.err.println("Error initializing SMT solver: " + e.getMessage());
+        }
+        catch (IllegalArgumentException e)
+        {
+            System.err.println("Invalid input: " + e.getMessage());
+        }
+        catch (InvalidConfigurationException e)
+        {
+            System.err.println("Error initializing SMT solver Configuration: " + e.getMessage());
+        }
+        catch (SolverException | InterruptedException e) {
+            System.err.println("Error during solving: " + e.getMessage());
         }
     }
 }
+
+
