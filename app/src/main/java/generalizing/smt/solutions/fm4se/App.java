@@ -16,6 +16,7 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.api.SolverException;
 
 import java.io.IOException;
+import java.util.List;
 
 public class App {
 
@@ -109,8 +110,12 @@ public class App {
             System.out.println("Formula satisfiable? " + isSat);
 
             FormulaExecutor executor = new FormulaExecutor(parser);
-            Model model = executor.getAllSolution(smtLibInput);
-            System.out.println("Single solution: " + model);
+            List <Model> models = executor.getAllSolutions(smtLibInput);
+            
+            for (Model model : models)
+            {
+                System.out.println("Solution: " + model);
+            }
         }
         catch (IOException e)
         {
