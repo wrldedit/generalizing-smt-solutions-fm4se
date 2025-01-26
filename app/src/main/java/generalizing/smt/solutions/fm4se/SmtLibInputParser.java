@@ -17,7 +17,7 @@ import java.io.IOException;
 public class SmtLibInputParser {
 
     protected final SolverContext context;
-    private final FormulaManager formulaManager;
+    protected final FormulaManager formulaManager;
 
     public SmtLibInputParser() throws IOException, InvalidConfigurationException 
     {

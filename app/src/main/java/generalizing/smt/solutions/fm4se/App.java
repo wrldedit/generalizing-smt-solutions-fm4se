@@ -109,7 +109,7 @@ public class App {
             System.out.println("Formula satisfiable? " + isSat);
 
             FormulaExecutor executor = new FormulaExecutor(parser);
-            Model model = executor.getSingleSolution(smtLibInput);
+            Model model = executor.getAllSolution(smtLibInput);
             System.out.println("Single solution: " + model);
         }
         catch (IOException e)

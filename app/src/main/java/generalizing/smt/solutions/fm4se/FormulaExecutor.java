@@ -5,10 +5,15 @@ import org.sosy_lab.java_smt.api.SolverContext.ProverOptions;
 
 import java.io.IOException;
 import java.lang.InterruptedException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
+import org.sosy_lab.java_smt.api.Model.ValueAssignment;
+import org.sosy_lab.java_smt.api.BooleanFormula;
+
 
 public class FormulaExecutor {
 
@@ -20,7 +25,7 @@ public class FormulaExecutor {
     }
 
     /**
-     * Retrieve a single solution for the given formula
+     * Get a single solution for the given formula
      * 
      * @param smtLibInput the SMT-LIB formula string.
      * @return A single model or null if no solution exists.
@@ -50,6 +55,41 @@ public class FormulaExecutor {
         {
             throw new InterruptedException("Solver interrupted: " + e.getMessage());
         }
+    }
+
+    /**
+     * Get all solutions for the given formula
+     * 
+     * @param smtLibInput the SMT-LIB formula string.
+     * @return A list of models (solutions)
+     * @throws SolverException Solver exception during solving.
+     * @throws InterruptedException if the solver is interrupted while solving.
+     */
+    public List<Model> getAllSolutions(String smtLibInput) throws SolverException, InterruptedException
+    {
+        List<Model> solutions = new ArrayList<>();
+
+        try (ProverEnvironment prover = parser.context.newProverEnvironment(ProverOptions.GENERATE_MODELS)) {
+            BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
+            prover.addConstraint(formula);
+
+            while (!prover.isUnsat())
+            {
+                Model model = prover.getModel();
+                solutions.add(model);
+
+                // Build blocking formula from model assignments
+                BooleanFormula blocking = parser.formulaManager.getBooleanFormulaManager().makeTrue();
+                for (ValueAssignment assignment : model) {
+                    BooleanFormula term = assignment.getAssignmentAsFormula();
+                    blocking = parser.formulaManager.getBooleanFormulaManager().and(blocking, term);
+                }
+                // Add negation of the blocking formula to prevent this solution
+                prover.addConstraint(parser.formulaManager.getBooleanFormulaManager().not(blocking));
+            }
+        }
+
+        return solutions;
     }
 
 
