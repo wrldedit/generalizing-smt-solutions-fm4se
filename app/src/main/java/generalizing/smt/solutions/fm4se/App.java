@@ -103,7 +103,7 @@ public class App {
             String smtLibInput = 
                 "(declare-const x Int) " +
                 "(declare-const y Int) " +
-                "(assert (and (> (+ x y) 10) (< x 5)))";  // Combine assertions with 'and'
+                "(assert (and (= (+ x y) 10) (< x 5)))";  // Combine assertions with 'and'
 
             BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
             boolean isSat = parser.validateFormula(formula);
