@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.lang.InterruptedException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
@@ -73,24 +74,37 @@ public class FormulaExecutor {
             BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
             prover.addConstraint(formula);
 
-            while (!prover.isUnsat())
+            int count = 0;
+
+            while (!prover.isUnsat() && count < 10)
             {
                 Model model = prover.getModel();
                 solutions.add(model);
 
                 // Build blocking formula from model assignments
-                BooleanFormula blocking = parser.formulaManager.getBooleanFormulaManager().makeTrue();
-                for (ValueAssignment assignment : model) {
-                    BooleanFormula term = assignment.getAssignmentAsFormula();
-                    blocking = parser.formulaManager.getBooleanFormulaManager().and(blocking, term);
-                }
-                // Add negation of the blocking formula to prevent this solution
-                prover.addConstraint(parser.formulaManager.getBooleanFormulaManager().not(blocking));
+                BooleanFormula blocking = createBlockingFormula(model);
+                prover.addConstraint(blocking);
+                count++;
             }
         }
 
         return solutions;
     }
+
+    private BooleanFormula createBlockingFormula(Model model) {
+        BooleanFormulaManager bfmgr = parser.formulaManager.getBooleanFormulaManager();
+        List<BooleanFormula> disjunctions = new ArrayList<>();
+
+        for (ValueAssignment assignment : model) {
+            BooleanFormula term = assignment.getAssignmentAsFormula();
+            disjunctions.add(bfmgr.not(term));
+        }
+
+        return bfmgr.or(disjunctions);
+    }
+
+
+
 
 
 
