@@ -3,15 +3,7 @@
  */
 package generalizing.smt.solutions.fm4se;
 
-import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
-import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
-import org.sosy_lab.java_smt.SolverContextFactory.Solvers;
-import org.sosy_lab.common.configuration.Configuration;
-import org.sosy_lab.common.log.BasicLogManager;
-import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.common.ShutdownManager;
-import org.sosy_lab.java_smt.api.SolverContext.ProverOptions;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.api.SolverException;
 
@@ -101,16 +93,16 @@ public class App {
             SmtLibInputParser parser = new SmtLibInputParser();
 
             String smtLibInput = 
-                "(declare-const x Int) " +
-                "(declare-const y Int) " +
-                "(assert (and (= (+ x y) 10) (< x 5)))";  // Combine assertions with 'and'
+                "(declare-const x Int)\n" +
+                "(declare-const y Int)\n" +
+                "(assert (and (= (+ x y) 10) (and (< x 5) (< y 10))))";
 
             BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
             boolean isSat = parser.validateFormula(formula);
             System.out.println("Formula satisfiable? " + isSat);
 
             FormulaExecutor executor = new FormulaExecutor(parser);
-            List <Model> models = executor.getAllSolutions(smtLibInput);
+            List <Model> models = executor.getBoundedSolutions(smtLibInput, 10);
             
             for (Model model : models)
             {
