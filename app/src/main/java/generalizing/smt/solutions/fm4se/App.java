@@ -100,7 +100,7 @@ public class App {
             ctx.mkGt(y, ctx.mkInt(0))
         );
 
-        SolutionEnumerator enumerator = new SolutionEnumerator(connector);
+        ModelEnumerator enumerator = new ModelEnumerator(connector);
         List<Model> models = enumerator.enumerateSolutions(formula, 2);
 
         for (Model model : models)

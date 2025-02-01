@@ -9,7 +9,7 @@ import java.util.ArrayList;
  * SolutionEnumerator is a class that enumerates solutions for a given formula.
  * The solutions are enumerated by adding blocking constraints to the formula to avoid duplicates.
  */
-public class SolutionEnumerator {
+public class ModelEnumerator {
 
     private final SMTConnector connector;
 
@@ -17,7 +17,7 @@ public class SolutionEnumerator {
      * Constructs a new SolutionEnumerator with the given SMTConnector.
      * @param connector the SMTConnector to use
      */
-    public SolutionEnumerator(SMTConnector connector) 
+    public ModelEnumerator(SMTConnector connector) 
     {
         this.connector = connector;
     }

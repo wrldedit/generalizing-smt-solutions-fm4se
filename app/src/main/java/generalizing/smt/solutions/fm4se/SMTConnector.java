@@ -65,15 +65,18 @@ public class SMTConnector {
     }
 
     /**
-     * Checks if the given condition has a counterexample.
-     * @param condition the condition to check
-     * @return true if the condition has a counterexample, false otherwise
+     * Checks if the given formula is unsatisfiable.
+     * @param formula the formula to check
+     * @return true if the formula is unsatisfiable, false otherwise
      */
-    public boolean hasCounterexample(BoolExpr condition)
+    public boolean isUnsatisfiable(BoolExpr formula)
     {
-        BoolExpr negatedCondition = this.context.mkNot(condition);
-        return this.isSatisfiable(negatedCondition);
+        Solver solver = this.context.mkSolver();
+        solver.add(formula);
+        return solver.check() == Status.UNSATISFIABLE;
     }
+
+
 
     public void close()
     {
