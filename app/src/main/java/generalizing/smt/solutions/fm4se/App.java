@@ -3,11 +3,9 @@
  */
 package generalizing.smt.solutions.fm4se;
 
-import org.sosy_lab.java_smt.api.*;
-import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.java_smt.api.SolverException;
 
-import java.io.IOException;
+import com.microsoft.z3.*;
+
 import java.util.List;
 
 public class App {
@@ -17,6 +15,9 @@ public class App {
     }
 
     public static void main(String[] args) {
+        
+        
+        
         // Add debugging information
         /* System.out.println("Java Library Path: " + System.getProperty("java.library.path"));
         System.out.println("Working Directory: " + System.getProperty("user.dir"));
@@ -88,42 +89,25 @@ public class App {
             e.printStackTrace();
         } */
 
-        try 
-        {
-            SmtLibInputParser parser = new SmtLibInputParser();
+        SMTConnector connector = new SMTConnector();
+        Context ctx = connector.getContext();
 
-            String smtLibInput = 
-                "(declare-const x Int)\n" +
-                "(declare-const y Int)\n" +
-                "(assert (and (= (+ x y) 10) (and (< x 5) (< y 10))))";
+        IntExpr x = ctx.mkIntConst("x");
+        IntExpr y = ctx.mkIntConst("y");
 
-            BooleanFormula formula = parser.parseSmtLibInput(smtLibInput);
-            boolean isSat = parser.validateFormula(formula);
-            System.out.println("Formula satisfiable? " + isSat);
+        BoolExpr formula = ctx.mkAnd(
+            ctx.mkEq(x, ctx.mkInt(1)),
+            ctx.mkGt(y, ctx.mkInt(0))
+        );
 
-            FormulaExecutor executor = new FormulaExecutor(parser);
-            List <Model> models = executor.getBoundedSolutions(smtLibInput, 10);
-            
-            for (Model model : models)
-            {
-                System.out.println("Solution: " + model);
-            }
-        }
-        catch (IOException e)
+        SolutionEnumerator enumerator = new SolutionEnumerator(connector);
+        List<Model> models = enumerator.enumerateSolutions(formula, 2);
+
+        for (Model model : models)
         {
-            System.err.println("Error initializing SMT solver: " + e.getMessage());
+            System.out.println("Solution: " + model);
         }
-        catch (IllegalArgumentException e)
-        {
-            System.err.println("Invalid input: " + e.getMessage());
-        }
-        catch (InvalidConfigurationException e)
-        {
-            System.err.println("Error initializing SMT solver Configuration: " + e.getMessage());
-        }
-        catch (SolverException | InterruptedException e) {
-            System.err.println("Error during solving: " + e.getMessage());
-        }
+        
     }
 }
 
