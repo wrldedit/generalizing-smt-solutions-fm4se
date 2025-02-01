@@ -52,7 +52,7 @@ public class InteractiveAnalyzer {
                     String variableName = scanner.nextLine().trim();
                     System.out.print("Enter the candidate value for " + variableName + " (true/false): ");
                     String candidateValue = scanner.nextLine().trim();
-                    candidate = CandidateInvariant.createFixedValueInvariant(variableName, candidateValue);
+                    candidate = CandidateInvariant.createFixedValueInvariant(variableName, candidateValue, ctx);
                     strategy = new FixedValueFormulaStrategy(connector);
                     break;
                 case "2":
@@ -64,7 +64,7 @@ public class InteractiveAnalyzer {
                     candidate = CandidateInvariant.createBooleanInvariant(booleanVariableNameString, booleanCandidateString, ctx);
                     strategy = new AlwaysTrueFalseFormulaStrategy(connector);
                     break;
-                case "3";
+                case "3":
                     // Interval candidate invariant: e.g., y ∈ [l, u]
                     System.out.print("Enter the variable name (e.g., y): ");
                     String intervalVar = scanner.nextLine().trim();

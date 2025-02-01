@@ -15,80 +15,8 @@ public class App {
     }
 
     public static void main(String[] args) {
-        
-        
-        
-        // Add debugging information
-        /* System.out.println("Java Library Path: " + System.getProperty("java.library.path"));
-        System.out.println("Working Directory: " + System.getProperty("user.dir"));
-        
-        try {
-            System.loadLibrary("libz3");
-            System.out.println("Successfully loaded Z3 library");
-        } catch (UnsatisfiedLinkError e) {
-            System.err.println("Failed to load Z3 library: " + e.getMessage());
-            System.err.println("Trying to load with absolute path...");
-            try {
-                System.load("C:/Users/Fritz Trede/z3-4.8.9-x64-win/bin/libz3.dll");
-                System.out.println("Successfully loaded Z3 library with absolute path");
-            } catch (UnsatisfiedLinkError e2) {
-                System.err.println("Failed to load Z3 library with absolute path: " + e2.getMessage());
-            }
-        }
-        
-        System.out.println("Hello World!");
-        // Print the greeting   
-       System.out.println("Testing Java SMT API...");
-        try {
-           
-            // Initialize the configuration, logger, and shutdown manager
-            Configuration config = Configuration.fromCmdLineArguments(args);
-		    LogManager logger = BasicLogManager.create(config);
-		    ShutdownManager shutdown = ShutdownManager.create();
-            
-            //Use (Z3) SMT Solver + Formula Managers
-		    SolverContext context = SolverContextFactory.createSolverContext(config, 
-                logger, 
-                shutdown.getNotifier(), 
-                Solvers.Z3
-            );
 
-
-
-            // Create the formula manager
-            FormulaManager fmgr = context.getFormulaManager();
-            IntegerFormulaManager imgr = fmgr.getIntegerFormulaManager();
-
-            // Define variables
-            IntegerFormula x = imgr.makeVariable("x");
-            IntegerFormula y = imgr.makeVariable("y");
-
-            // Define a formula: x + y = 10
-            BooleanFormula constraint = imgr.equal(imgr.add(x, y), imgr.makeNumber(10));
-
-            // Before using the prover, enable model generation
-            try (ProverEnvironment prover = context.newProverEnvironment(
-                ProverOptions.GENERATE_MODELS
-            )) {
-                prover.addConstraint(constraint);
-                boolean isUnsat = prover.isUnsat();
-                
-                if (!isUnsat) {
-                    Model model = prover.getModel();
-                    // Print the model
-                    System.out.println(model);
-                }
-                else {
-                    System.out.println("No solution exists.");
-                }
-            }
-
-            // Cleanup
-            context.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } */
-
+    
         SMTConnector connector = new SMTConnector();
         Context ctx = connector.getContext();
 
@@ -97,7 +25,8 @@ public class App {
 
         BoolExpr formula = ctx.mkAnd(
             ctx.mkEq(x, ctx.mkInt(1)),
-            ctx.mkGt(y, ctx.mkInt(0))
+            ctx.mkGt(y, ctx.mkInt(0)),
+            ctx.mkEq(ctx.mkInt(2), ctx.mkAdd(x,y))
         );
 
         ModelEnumerator enumerator = new ModelEnumerator(connector);
@@ -107,6 +36,13 @@ public class App {
         {
             System.out.println("Solution: " + model);
         }
+
+        // Launch the interactive analyzer session.
+        InteractiveAnalyzer analyzer = new InteractiveAnalyzer(connector);
+        analyzer.runInteractiveSession(formula);
+
+        // Clean up the context.
+        connector.close();
         
     }
 }
