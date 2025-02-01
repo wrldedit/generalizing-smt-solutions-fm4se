@@ -50,7 +50,45 @@ public class InteractiveAnalyzer {
                     // Fixed Value Candidate: e.g. x = 1
                     System.out.print("Enter the variable name (e.g., x): ");
                     String variableName = scanner.nextLine().trim();
+                    System.out.print("Enter the candidate value for " + variableName + " (true/false): ");
+                    String candidateValue = scanner.nextLine().trim();
+                    candidate = CandidateInvariant.createFixedValueInvariant(variableName, candidateValue);
+                    strategy = new FixedValueFormulaStrategy(connector);
+                    break;
+                case "2":
+                    // Boolean candidate invariant: e.g., p is always true
+                    System.out.print("Enter the Boolean variable name (e.g., p): ");
+                    String booleanVariableNameString = scanner.nextLine().trim();
+                    System.out.print("Enter the candidate value for " + booleanVariableNameString + " (true/false): ");
+                    String booleanCandidateString = scanner.nextLine().trim();
+                    candidate = CandidateInvariant.createBooleanInvariant(booleanVariableNameString, booleanCandidateString, ctx);
+                    strategy = new AlwaysTrueFalseFormulaStrategy(connector);
+                    break;
+                case "3";
+                    // Interval candidate invariant: e.g., y ∈ [l, u]
+                    System.out.print("Enter the variable name (e.g., y): ");
+                    String intervalVar = scanner.nextLine().trim();
+                    System.out.print("Enter the lower bound candidate for " + intervalVar + ": ");
+                    String lowerBound = scanner.nextLine().trim();
+                    System.out.print("Enter the upper bound candidate for " + intervalVar + ": ");
+                    String upperBound = scanner.nextLine().trim();
+                    candidate = CandidateInvariant.createIntervalInvariant(intervalVar, lowerBound, upperBound, ctx);
+                    strategy = new IntervalFormulaStrategy(connector);
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+                    continue;
+            }
+
+            if (candidate != null && strategy != null)
+            {
+                // Apply the selected strategy to the original formula and the candidate.
+                System.out.println("\nVerifying candidate invariant: " + candidate.toString());
+                GeneralizationResult result = strategy.apply(formula, candidate);
+                System.out.println("Result:\n" + result);
+            }
         }
+        scanner.close();
     }
     
 }
