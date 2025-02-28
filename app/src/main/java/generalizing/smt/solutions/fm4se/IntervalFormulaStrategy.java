@@ -101,8 +101,9 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
      * Recursively collects all integer variables in a formula.
      */
     private void collectIntegerVariables(Expr expr, List<IntExpr> variables, Context ctx) {
-        if (expr instanceof IntExpr && !variables.contains(expr)) {
+        if (expr instanceof IntExpr && expr.isConst() && !variables.contains(expr)) {
             variables.add((IntExpr) expr);
+            System.out.println("Collected variable: " + expr);
         }
         for (Expr arg : expr.getArgs()) {
             collectIntegerVariables(arg, variables, ctx);
@@ -120,9 +121,13 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
         
         // Fix all variables except the free one
         for (IntExpr var : allVars) {
+
+            System.out.println("Checking variable: " + var);
             if (!var.equals(freeVar)) {
                 Expr value = model.evaluate(var, true);
+                System.out.println("Value: " + value);
                 if (value != null) {
+                    System.out.println("Adding constraint: " + ctx.mkEq(var, (IntExpr)value));
                     constraints.add(ctx.mkEq(var, (IntExpr)value));
                 }
             }

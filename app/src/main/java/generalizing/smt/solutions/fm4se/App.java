@@ -7,6 +7,7 @@ package generalizing.smt.solutions.fm4se;
 import com.microsoft.z3.*;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public class App {
 
@@ -28,7 +29,7 @@ public class App {
             ctx.mkGt(y, ctx.mkInt(0)),
             //ctx.mkEq(ctx.mkInt(20), ctx.mkAdd(x,y)),
             //ctx.mkLe(ctx.mkInt(4), ctx.mkAdd(x,y))
-            ctx.mkLe(ctx.mkAdd(x,y), ctx.mkInt(4))
+            ctx.mkLe(ctx.mkAdd(x,y), ctx.mkInt(100))
         );
 
         ModelEnumerator enumerator = new ModelEnumerator(connector);
