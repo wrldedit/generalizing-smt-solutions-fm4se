@@ -26,7 +26,8 @@ public class App {
         BoolExpr formula = ctx.mkAnd(
             ctx.mkEq(x, ctx.mkInt(1)),
             ctx.mkGt(y, ctx.mkInt(0)),
-            ctx.mkEq(ctx.mkInt(2), ctx.mkAdd(x,y))
+            //ctx.mkEq(ctx.mkInt(20), ctx.mkAdd(x,y)),
+            ctx.mkLe(ctx.mkInt(5), ctx.mkAdd(x,y))
         );
 
         ModelEnumerator enumerator = new ModelEnumerator(connector);

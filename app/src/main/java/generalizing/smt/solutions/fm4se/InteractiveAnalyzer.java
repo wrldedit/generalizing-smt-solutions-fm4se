@@ -65,14 +65,9 @@ public class InteractiveAnalyzer {
                     strategy = new AlwaysTrueFalseFormulaStrategy(connector);
                     break;
                 case "3":
-                    // Interval candidate invariant: e.g., y ∈ [l, u]
-                    System.out.print("Enter the variable name (e.g., y): ");
-                    String intervalVar = scanner.nextLine().trim();
-                    System.out.print("Enter the lower bound candidate for " + intervalVar + ": ");
-                    String lowerBound = scanner.nextLine().trim();
-                    System.out.print("Enter the upper bound candidate for " + intervalVar + ": ");
-                    String upperBound = scanner.nextLine().trim();
-                    candidate = CandidateInvariant.createIntervalInvariant(intervalVar, lowerBound, upperBound, ctx);
+                    // Automatically detect intervals for all variables.
+                    System.out.println("Automatically determining valid intervals...");
+                    candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
                     strategy = new IntervalFormulaStrategy(connector);
                     break;
                 default:

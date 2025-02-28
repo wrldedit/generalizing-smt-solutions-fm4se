@@ -70,6 +70,17 @@ public class CandidateInvariant {
         return new CandidateInvariant(CandidateType.INTERVAL, variableName, null, lowerBound, upperBound);
     }
 
+    /**
+     * Creates an automatically determined interval invariant.
+     *
+     * @param ctx the Z3 context.
+     * @return a CandidateInvariant instance for automatic interval discovery.
+     */
+    public static CandidateInvariant createAutoIntervalInvariant(Context ctx) 
+    {
+        return new CandidateInvariant(CandidateType.INTERVAL, "AUTO", null, null, null);
+    }
+
     public CandidateType getType()
     {
         return this.type;
