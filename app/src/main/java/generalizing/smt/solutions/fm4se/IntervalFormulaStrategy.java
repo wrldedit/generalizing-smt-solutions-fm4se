@@ -114,17 +114,22 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
      */
     private BoolExpr fixAllExcept(BoolExpr formula, IntExpr freeVar, Context ctx, Model model) {
         List<BoolExpr> constraints = new ArrayList<>();
-
-        for (FuncDecl decl : model.getConstDecls()) {
-            if (decl.getRange().equals(ctx.getIntSort()) && !decl.getName().toString().equals(freeVar.toString())) {
-                IntExpr var = (IntExpr) ctx.mkConst(decl.getName(), decl.getRange());
-                IntNum value = (IntNum) model.getConstInterp(decl); // Get model-assigned value
+        
+        // Get all variables from the formula first
+        List<IntExpr> allVars = extractIntegerVariables(formula, ctx);
+        
+        // Fix all variables except the free one
+        for (IntExpr var : allVars) {
+            if (!var.equals(freeVar)) {
+                Expr value = model.evaluate(var, true);
                 if (value != null) {
-                    constraints.add(ctx.mkEq(var, value)); // Fix variable
+                    constraints.add(ctx.mkEq(var, (IntExpr)value));
                 }
             }
         }
-        return ctx.mkAnd(formula, ctx.mkAnd(constraints.toArray(new BoolExpr[0])));
+        
+        // Only add the fixed variable constraints, keep original formula separate
+        return formula;  // Return just the original formula since we'll add constraints in the solver
     }
 
     /**
@@ -132,12 +137,22 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
      */
     private int findLowerBoundNaive(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
         int lowerBound = startValue;
+        Solver solver = ctx.mkSolver();
+        solver.add(formula);
 
         // Expand downward until unsatisfiable
-        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(lowerBound))))) {
+        while (solver.check() == Status.SATISFIABLE) {
             lowerBound--;
+            solver.push();
+            solver.add(ctx.mkEq(variable, ctx.mkInt(lowerBound)));
+            if (solver.check() != Status.SATISFIABLE) {
+                solver.pop();
+                lowerBound++;
+                break;
+            }
+            solver.pop();
         }
-        return lowerBound + 1; // The last satisfiable value
+        return lowerBound;
     }
 
     /**
@@ -145,12 +160,22 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
      */
     private int findUpperBoundNaive(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
         int upperBound = startValue;
+        Solver solver = ctx.mkSolver();
+        solver.add(formula);
 
         // Expand upward until unsatisfiable
-        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(upperBound))))) {
+        while (solver.check() == Status.SATISFIABLE) {
             upperBound++;
+            solver.push();
+            solver.add(ctx.mkEq(variable, ctx.mkInt(upperBound)));
+            if (solver.check() != Status.SATISFIABLE) {
+                solver.pop();
+                upperBound--;
+                break;
+            }
+            solver.pop();
         }
-        return upperBound - 1; // The last satisfiable value
+        return upperBound;
     }
 
     /**

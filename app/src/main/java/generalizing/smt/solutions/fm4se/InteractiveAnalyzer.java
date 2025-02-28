@@ -65,18 +65,7 @@ public class InteractiveAnalyzer {
                     strategy = new AlwaysTrueFalseFormulaStrategy(connector);
                     break;
                 case "3":
-                    System.out.println("Do you want to determine intervals for a specific variable? (y/n)");
-                    String specificVarChoice = scanner.nextLine().trim().toLowerCase();
-
-                    if (specificVarChoice.equals("y")) {
-                        System.out.print("Enter the variable name: ");
-                        String varName = scanner.nextLine().trim();
-                        candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
-                        strategy = new IntervalFormulaStrategy(connector, varName); // Analyze only this variable
-                    } else {
-                        candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
-                        strategy = new IntervalFormulaStrategy(connector); // Analyze all variables
-                    }
+                    handleIntervalStrategy(scanner, formula);
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again.");
@@ -94,5 +83,19 @@ public class InteractiveAnalyzer {
         scanner.close();
     }
     
+    private void handleIntervalStrategy(Scanner scanner, BoolExpr formula) {
+        System.out.println("Enter variable name to analyze (or 'n' for all variables): ");
+        String varName = scanner.nextLine().trim();
+        
+        FormulaBasedGeneralizationStrategy strategy;
+        if (varName.equalsIgnoreCase("n")) {
+            strategy = new IntervalFormulaStrategy(connector);
+        } else {
+            strategy = new IntervalFormulaStrategy(connector, varName);
+        }
+        
+        GeneralizationResult result = strategy.apply(formula, null);
+        System.out.println(result.getDescription());
+    }
 }
 
