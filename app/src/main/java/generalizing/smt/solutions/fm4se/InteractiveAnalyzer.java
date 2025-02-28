@@ -65,10 +65,18 @@ public class InteractiveAnalyzer {
                     strategy = new AlwaysTrueFalseFormulaStrategy(connector);
                     break;
                 case "3":
-                    // Automatically detect intervals for all variables.
-                    System.out.println("Automatically determining valid intervals...");
-                    candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
-                    strategy = new IntervalFormulaStrategy(connector);
+                    System.out.println("Do you want to determine intervals for a specific variable? (y/n)");
+                    String specificVarChoice = scanner.nextLine().trim().toLowerCase();
+
+                    if (specificVarChoice.equals("y")) {
+                        System.out.print("Enter the variable name: ");
+                        String varName = scanner.nextLine().trim();
+                        candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
+                        strategy = new IntervalFormulaStrategy(connector, varName); // Analyze only this variable
+                    } else {
+                        candidate = CandidateInvariant.createAutoIntervalInvariant(ctx);
+                        strategy = new IntervalFormulaStrategy(connector); // Analyze all variables
+                    }
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again.");

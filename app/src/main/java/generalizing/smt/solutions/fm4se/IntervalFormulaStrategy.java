@@ -2,64 +2,88 @@ package generalizing.smt.solutions.fm4se;
 
 import com.microsoft.z3.*;
 
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * IntervalFormulaStrategy automatically determines the valid range of values
- * for each variable by iterating through the formula, fixing all but one variable,
- * and expanding the possible interval using two methods:
- * <ul>
- *     <li>Naive expansion (incrementing/decrementing by 1)</li>
- *     <li>Binary search for efficiency</li>
- * </ul>
+ * IntervalFormulaStrategy determines the valid range of values
+ * for variables by fixing all but one variable and expanding outward until unsatisfiable.
  */
 public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrategy {
     private final SMTConnector connector;
+    private final String targetVariable; // New: Allow specific variable selection
 
     /**
-     * Constructs the strategy with the given SMTConnector.
+     * Constructs the strategy for all variables.
      *
      * @param connector the SMTConnector providing the Z3 context.
      */
     public IntervalFormulaStrategy(SMTConnector connector) {
         this.connector = connector;
+        this.targetVariable = null; // Compute for all variables
+    }
+
+    /**
+     * Constructs the strategy for a specific variable.
+     *
+     * @param connector the SMTConnector providing the Z3 context.
+     * @param variableName the name of the variable to analyze.
+     */
+    public IntervalFormulaStrategy(SMTConnector connector, String variableName) {
+        this.connector = connector;
+        this.targetVariable = variableName; // Compute only for a specific variable
     }
 
     @Override
     public GeneralizationResult apply(BoolExpr originalFormula, CandidateInvariant candidate) {
         Context ctx = connector.getContext();
-        StringBuilder result = new StringBuilder("Automatically determined intervals:\n");
-    
+        StringBuilder result = new StringBuilder("Determined interval(s):\n");
+
         // Extract integer variables
         List<IntExpr> variables = extractIntegerVariables(originalFormula, ctx);
         if (variables.isEmpty()) {
             return new GeneralizationResult("Interval Formula Strategy", "No integer variables found in the formula.");
         }
-    
+
+        // If a target variable is specified, filter the list
+        if (targetVariable != null) {
+            variables.removeIf(var -> !var.toString().equals(targetVariable));
+            if (variables.isEmpty()) {
+                return new GeneralizationResult("Interval Formula Strategy", "Variable '" + targetVariable + "' not found.");
+            }
+        }
+
         // Get a model to use for fixing values
         Model model = connector.getSolution(originalFormula);
         if (model == null) {
             return new GeneralizationResult("Interval Formula Strategy", "No solution found for the formula.");
         }
-    
+
         for (IntExpr variable : variables) {
             // Fix all other variables using a valid model
             BoolExpr formulaWithFixedValues = fixAllExcept(originalFormula, variable, ctx, model);
-    
-/*             // Find interval bounds using naive expansion
-            int lowerBound = findLowerBoundNaive(variable, formulaWithFixedValues, ctx);
-            int upperBound = findUpperBoundNaive(variable, formulaWithFixedValues, ctx);
-    
-            result.append(variable + " ∈ [" + lowerBound + ", " + upperBound + "]\n"); */
-    
-            // Find tighter bounds using binary search
-            int lowerBoundBS = findLowerBoundBinary(variable, formulaWithFixedValues, ctx, -1000, 1000);
-            int upperBoundBS = findUpperBoundBinary(variable, formulaWithFixedValues, ctx, -1000 , 1000);
-    
+
+            // Get the starting value from the model
+            Expr value = model.evaluate(variable, true);
+            if (value == null) {
+                continue;
+            }
+            int startValue = ((IntNum)value).getInt();
+
+            // Find interval bounds using optimized naive expansion
+            int lowerBound = findLowerBoundNaive(variable, formulaWithFixedValues, ctx, startValue);
+            int upperBound = findUpperBoundNaive(variable, formulaWithFixedValues, ctx, startValue);
+
+            result.append(variable + " ∈ [" + lowerBound + ", " + upperBound + "]\n");
+
+            // Find tighter bounds using binary search (optional)
+            int lowerBoundBS = findLowerBoundBinary(variable, formulaWithFixedValues, ctx, lowerBound - 50, startValue);
+            int upperBoundBS = findUpperBoundBinary(variable, formulaWithFixedValues, ctx, startValue, upperBound + 50);
+
             result.append("   Binary Search: " + variable + " ∈ [" + lowerBoundBS + ", " + upperBoundBS + "]\n");
         }
-    
+
         return new GeneralizationResult("Interval Formula Strategy", result.toString());
     }
 
@@ -104,25 +128,29 @@ public class IntervalFormulaStrategy implements FormulaBasedGeneralizationStrate
     }
 
     /**
-     * Finds the lowest possible value of the variable using a naive increment approach.
+     * Finds the lowest possible value of the variable by expanding outward from a known valid model value.
      */
-    private int findLowerBoundNaive(IntExpr variable, BoolExpr formula, Context ctx) {
-        int bound = -1000; // Start from an arbitrary low value
-        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(bound))))) {
-            bound--; // Expand downward
+    private int findLowerBoundNaive(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
+        int lowerBound = startValue;
+
+        // Expand downward until unsatisfiable
+        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(lowerBound))))) {
+            lowerBound--;
         }
-        return bound + 1; // The last valid value
+        return lowerBound + 1; // The last satisfiable value
     }
 
     /**
-     * Finds the highest possible value of the variable using a naive increment approach.
+     * Finds the highest possible value of the variable by expanding outward from a known valid model value.
      */
-    private int findUpperBoundNaive(IntExpr variable, BoolExpr formula, Context ctx) {
-        int bound = 1000; // Start from an arbitrary high value
-        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(bound))))) {
-            bound++; // Expand upward
+    private int findUpperBoundNaive(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
+        int upperBound = startValue;
+
+        // Expand upward until unsatisfiable
+        while (connector.isSatisfiable(ctx.mkAnd(formula, ctx.mkEq(variable, ctx.mkInt(upperBound))))) {
+            upperBound++;
         }
-        return bound - 1; // The last valid value
+        return upperBound - 1; // The last satisfiable value
     }
 
     /**

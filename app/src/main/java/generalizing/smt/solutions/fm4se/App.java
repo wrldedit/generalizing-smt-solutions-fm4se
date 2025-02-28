@@ -27,7 +27,8 @@ public class App {
             ctx.mkEq(x, ctx.mkInt(1)),
             ctx.mkGt(y, ctx.mkInt(0)),
             //ctx.mkEq(ctx.mkInt(20), ctx.mkAdd(x,y)),
-            ctx.mkLe(ctx.mkInt(5), ctx.mkAdd(x,y))
+            //ctx.mkLe(ctx.mkInt(4), ctx.mkAdd(x,y))
+            ctx.mkLe(ctx.mkAdd(x,y), ctx.mkInt(4))
         );
 
         ModelEnumerator enumerator = new ModelEnumerator(connector);
