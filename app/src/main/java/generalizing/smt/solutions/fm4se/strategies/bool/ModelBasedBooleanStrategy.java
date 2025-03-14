@@ -20,14 +20,35 @@ public class ModelBasedBooleanStrategy implements BooleanStrategy {
     public String analyzeRelations(BoolExpr formula, Set<String> variables) {
         Context ctx = connector.getContext();
         StringBuilder result = new StringBuilder();
+        
+        result.append("Model-Based Analysis:\n");
+        result.append("Testing up to " + MAX_SOLUTIONS + " models...\n");
 
         // Collect models
         List<Map<String, Boolean>> solutions = collectSolutions(formula, variables, ctx);
         if (solutions.isEmpty()) {
-            return "No solutions found.";
+            return result.append("No solutions found.").toString();
         }
 
-        // Part 1: Check for fixed values (single variable properties)
+        // Display models in compact format
+        result.append("Found ").append(solutions.size()).append(" satisfying models:\n");
+        for (int i = 0; i < solutions.size(); i++) {
+            Map<String, Boolean> solution = solutions.get(i);
+            result.append(String.format("[%d] {", i + 1));
+            boolean first = true;
+            List<String> sortedVars = new ArrayList<>(variables);
+            Collections.sort(sortedVars);
+            for (String var : sortedVars) {
+                if (!first) result.append(", ");
+                result.append(String.format("%s: %-5s", var, solution.get(var)));
+                first = false;
+            }
+            result.append("}\n");
+        }
+        result.append("\n");
+
+        // Part 1: Check for fixed values
+        result.append("Analysis Results:\n");
         result.append("Fixed Values:\n");
         boolean foundFixed = false;
         for (String var : variables) {
@@ -50,9 +71,14 @@ public class ModelBasedBooleanStrategy implements BooleanStrategy {
             result.append("  None found\n");
         }
 
-        // Part 2: Check for implications (relationships between variables)
+        // Part 2: Check for implications
         result.append("\nImplications:\n");
         boolean foundImplication = false;
+        
+        // Map from variable to its implications (both true and false)
+        Map<String, List<String>> trueImplications = new HashMap<>();
+        Map<String, List<String>> falseImplications = new HashMap<>();
+        
         for (String var1 : variables) {
             for (String var2 : variables) {
                 if (var1.equals(var2)) continue;
@@ -72,14 +98,54 @@ public class ModelBasedBooleanStrategy implements BooleanStrategy {
                 
                 if (impliesTrue) {
                     foundImplication = true;
-                    result.append("  ").append(var1).append(" = true implies ").append(var2).append(" = true\n");
+                    if (!trueImplications.containsKey(var1)) {
+                        trueImplications.put(var1, new ArrayList<>());
+                    }
+                    trueImplications.get(var1).add(var2);
                 } else if (impliesFalse) {
                     foundImplication = true;
-                    result.append("  ").append(var1).append(" = true implies ").append(var2).append(" = false\n");
+                    if (!falseImplications.containsKey(var1)) {
+                        falseImplications.put(var1, new ArrayList<>());
+                    }
+                    falseImplications.get(var1).add(var2);
                 }
             }
         }
-        if (!foundImplication) {
+
+        // Output consolidated implications
+        if (foundImplication) {
+            List<String> sortedVars = new ArrayList<>(variables);
+            Collections.sort(sortedVars);
+            
+            for (String var : sortedVars) {
+                List<String> trueList = trueImplications.get(var);
+                List<String> falseList = falseImplications.get(var);
+                
+                if (trueList != null && !trueList.isEmpty()) {
+                    Collections.sort(trueList);
+                    result.append("  ").append(var).append(" = true implies ");
+                    if (trueList.size() == 1) {
+                        result.append(trueList.get(0)).append(" = true\n");
+                    } else {
+                        result.append("all of {");
+                        result.append(String.join(", ", trueList));
+                        result.append("} = true\n");
+                    }
+                }
+                
+                if (falseList != null && !falseList.isEmpty()) {
+                    Collections.sort(falseList);
+                    result.append("  ").append(var).append(" = true implies ");
+                    if (falseList.size() == 1) {
+                        result.append(falseList.get(0)).append(" = false\n");
+                    } else {
+                        result.append("all of {");
+                        result.append(String.join(", ", falseList));
+                        result.append("} = false\n");
+                    }
+                }
+            }
+        } else {
             result.append("  None found\n");
         }
 

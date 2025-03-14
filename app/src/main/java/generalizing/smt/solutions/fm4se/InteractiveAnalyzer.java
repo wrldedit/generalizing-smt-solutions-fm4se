@@ -5,7 +5,6 @@ import generalizing.smt.solutions.fm4se.strategies.bool.*;
 import generalizing.smt.solutions.fm4se.strategies.integer.*;
 import generalizing.smt.solutions.fm4se.strategies.bool.ModelBasedBooleanStrategy;
 import generalizing.smt.solutions.fm4se.strategies.bool.FormulaBasedBooleanStrategy;
-import generalizing.smt.solutions.fm4se.strategies.RelationType;
 import generalizing.smt.solutions.fm4se.SMTConnector;
 import java.util.Scanner;
 import java.util.ArrayList;
@@ -44,7 +43,7 @@ public class InteractiveAnalyzer {
             try {
                 System.out.println("\nSelect analysis type:");
                 System.out.println("1: Boolean Analysis");
-                System.out.println("2: Interval Analysis");
+                System.out.println("2: Integer Analysis");
                 System.out.println("q: Quit");
                 System.out.print("Enter your choice: ");
                 
@@ -121,7 +120,55 @@ public class InteractiveAnalyzer {
     }
 
     private void handleIntervalStrategy(BoolExpr formula, Scanner scanner) {
-        System.out.println("\nInterval analysis not yet implemented.");
+        System.out.println("\nSelect Integer Analysis Strategy:");
+        System.out.println("1. Linear Search (Simple but slower)");
+        System.out.println("2. Binary Search (Faster for large ranges)");
+        System.out.println("3. Both Strategies");
+        System.out.print("Enter your choice (1-3): ");
+
+        try {
+            int choice = Integer.parseInt(scanner.nextLine().trim());
+            StringBuilder result = new StringBuilder();
+
+            // Extract integer variables for analysis
+            Set<String> variables = extractIntegerVariables(formula);
+            
+            if (variables.isEmpty()) {
+                System.out.println("No integer variables found in the formula.");
+                return;
+            }
+
+            switch (choice) {
+                case 1:
+                    result.append("Using Linear Search Strategy:\n");
+                    NaiveIntegerStrategy naiveStrategy = new NaiveIntegerStrategy(connector);
+                    result.append(naiveStrategy.analyzeIntegers(formula, variables));
+                    break;
+                case 2:
+                    result.append("Using Binary Search Strategy:\n");
+                    BinarySearchIntegerStrategy binaryStrategy = new BinarySearchIntegerStrategy(connector);
+                    result.append(binaryStrategy.analyzeIntegers(formula, variables));
+                    break;
+                case 3:
+                    result.append("Using Linear Search Strategy:\n");
+                    naiveStrategy = new NaiveIntegerStrategy(connector);
+                    result.append(naiveStrategy.analyzeIntegers(formula, variables));
+                    result.append("\nUsing Binary Search Strategy:\n");
+                    binaryStrategy = new BinarySearchIntegerStrategy(connector);
+                    result.append(binaryStrategy.analyzeIntegers(formula, variables));
+                    break;
+                default:
+                    System.out.println("Invalid choice. Using Binary Search Strategy.");
+                    result.append("Using Binary Search Strategy:\n");
+                    binaryStrategy = new BinarySearchIntegerStrategy(connector);
+                    result.append(binaryStrategy.analyzeIntegers(formula, variables));
+            }
+
+            System.out.println("\n" + result.toString());
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Please enter a number.");
+        }
     }
 
     /**
@@ -142,6 +189,27 @@ public class InteractiveAnalyzer {
         }
         for (Expr arg : expr.getArgs()) {
             collectVariables(arg, variables);
+        }
+    }
+
+    /**
+     * Extracts integer variables from a formula.
+     */
+    private Set<String> extractIntegerVariables(BoolExpr formula) {
+        Set<String> variables = new HashSet<>();
+        collectIntegerVariables(formula, variables);
+        return variables;
+    }
+
+    private void collectIntegerVariables(Expr expr, Set<String> variables) {
+        if (expr.isConst() && expr.isInt()) {
+            String name = expr.toString();
+            if (!name.matches("-?\\d+")) {  // Exclude numeric constants
+                variables.add(name);
+            }
+        }
+        for (Expr arg : expr.getArgs()) {
+            collectIntegerVariables(arg, variables);
         }
     }
 }
