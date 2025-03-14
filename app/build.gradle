@@ -8,6 +8,7 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     id 'application'
+    id 'java'
 }
 
 repositories {
@@ -21,19 +22,26 @@ repositories {
 
 dependencies {
     // Use JUnit Jupiter for testing.
-    testImplementation libs.junit.jupiter
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
 
     // This dependency is used by the application.
-    implementation libs.guava
+    implementation 'com.google.guava:guava:31.1-jre'
 
     // SMT solver
     implementation 'org.sosy-lab:java-smt:3.14.3'
-    
-    // Remove the Z3 Maven dependency since we're using the local jar
-    // implementation 'com.microsoft.z3:z3:4.8.9'  // Remove this line
     implementation files('libs/com.microsoft.z3.jar')
-    implementation files('C:/Users/Fritz Trede/z3-4.8.9-x64-win/bin/com.microsoft.z3.jar')
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources', 'libs']
+        }
+        output.resourcesDir = file('build/classes/java/main')
+    }
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -41,16 +49,13 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 application {
     // Define the main class for the application.
-    mainClass = 'generalizing.smt.solutions.fm4se.App'
-    
-    // Update the JVM args to include both paths
-    applicationDefaultJvmArgs = [
-        "-Djava.library.path=C:/Users/Fritz Trede/z3-4.8.9-x64-win/bin"
-    ]
+    mainClass.set('generalizing.smt.solutions.fm4se.App')
 }
 
 tasks.named('test') {
@@ -58,21 +63,33 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-// Add this task to copy native libraries
-tasks.register('copyNativeLibs', Copy) {
-    from "C:/Users/Fritz Trede/z3-4.8.9-x64-win/bin"
-    include "*.dll"
-    into "${buildDir}/libs"
+task copyNativeLibs(type: Copy) {
+    from "${projectDir}/libs"
+    include "*.dll", "*.so", "*.dylib"
+    into "$buildDir/libs"
 }
 
-tasks.named('run') {
-    dependsOn 'copyNativeLibs'
+tasks.named('run').configure {
+    dependsOn 'classes'
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperty 'java.library.path', "${projectDir}/libs"
+    doFirst {
+        copy {
+            from "${projectDir}/libs"
+            include "*.dll", "*.so", "*.dylib"
+            into "${buildDir}/libs"
+        }
+    }
 }
 
-tasks.withType(AbstractArchiveTask) {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+tasks.named('distZip') {
+    dependsOn copyNativeLibs
 }
 
-distTar {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+tasks.named('distTar') {
+    dependsOn copyNativeLibs
+}
+
+tasks.named('startScripts') {
+    dependsOn copyNativeLibs
 }

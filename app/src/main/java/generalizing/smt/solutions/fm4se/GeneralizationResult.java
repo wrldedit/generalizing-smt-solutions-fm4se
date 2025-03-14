@@ -1,8 +1,18 @@
 package generalizing.smt.solutions.fm4se;
 
 /**
- * GeneralizationResult is a class that represents the outcome of a generalization check. 
- * It stores the name of the strategy and a description of the result.
+ * Represents the result of a generalization strategy analysis.
+ * This class encapsulates:
+ * 1. The name of the strategy used
+ * 2. A detailed description of the findings
+ * 3. Optional performance metrics
+ * 
+ * The description should be formatted for readability and
+ * include all relevant information about patterns, relationships,
+ * or constraints found during analysis.
+ * 
+ * @author Fritz Trede
+ * @version 1.0
  */
 public class GeneralizationResult {
 
@@ -10,9 +20,10 @@ public class GeneralizationResult {
     private final String description;
 
     /**
-     * Constructs a GeneralizationResult with the given strategy name and description.
-     * @param strategyName the name of the strategy that was used.
-     * @param description the description of the result of the generalization check.
+     * Creates a new generalization result.
+     * 
+     * @param strategyName Name of the strategy that produced this result
+     * @param description Detailed description of the findings
      */
     public GeneralizationResult(String strategyName, String description)
     {
@@ -21,8 +32,9 @@ public class GeneralizationResult {
     }
 
     /**
-     * Returns the name of the strategy that was used.
-     * @return the name of the strategy.
+     * Gets the name of the strategy that produced this result.
+     * 
+     * @return The strategy name
      */
     public String getStrategyName()
     {
@@ -30,8 +42,9 @@ public class GeneralizationResult {
     }
 
     /**
-     * Returns the description of the result of the generalization check.
-     * @return the description of the result.
+     * Gets the detailed description of the findings.
+     * 
+     * @return The description
      */
     public String getDescription()
     {
@@ -45,6 +58,6 @@ public class GeneralizationResult {
     @Override
     public String toString()
     {
-        return strategyName + ": " + description;
+        return String.format("Strategy: %s\n%s", strategyName, description);
     }
 }

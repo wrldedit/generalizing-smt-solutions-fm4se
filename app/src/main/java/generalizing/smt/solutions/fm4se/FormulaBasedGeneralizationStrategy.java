@@ -3,17 +3,26 @@ package generalizing.smt.solutions.fm4se;
 import com.microsoft.z3.BoolExpr;
 
 /**
- * FormulaBasedGeneralizationStrategy defines an interface for strategies that
- * verify candidate invariants purely by operating on formulas.
+ * Interface for formula-based generalization strategies.
+ * These strategies analyze formulas to find patterns, relationships,
+ * and constraints between variables.
+ * 
+ * Each strategy should:
+ * 1. Analyze the formula structure or solutions
+ * 2. Identify patterns or relationships
+ * 3. Return results in a structured format
+ * 4. Document its performance characteristics
+ * 
+ * @author Fritz Trede
+ * @version 1.0
  */
 public interface FormulaBasedGeneralizationStrategy {
-
     /**
-     * Applies the strategy to verify the candidate invariant on the original formula.
-     * @param originalFormula the original formula to be generalized.
-     * @param candidate the candidate invariant to be applied.
-     * @return a GenerealizationResult, the result of the generalization check.
+     * Applies the strategy to a formula.
+     * 
+     * @param formula The formula to analyze
+     * @param candidate Optional candidate invariant to verify
+     * @return Results of the analysis
      */
-    GeneralizationResult apply(BoolExpr originalFormula, CandidateInvariant candidate);
-    
+    GeneralizationResult apply(BoolExpr formula, CandidateInvariant candidate);
 }

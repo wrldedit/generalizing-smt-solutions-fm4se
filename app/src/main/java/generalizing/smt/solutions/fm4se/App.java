@@ -3,50 +3,41 @@
  */
 package generalizing.smt.solutions.fm4se;
 
-
 import com.microsoft.z3.*;
 
-import java.util.List;
-import java.util.ArrayList;
-
 public class App {
-
-    public String getGreeting() {
-        return "Hello World!";
-    }
-
     public static void main(String[] args) {
+        try (Context ctx = new Context()) {
+            // Create boolean variables
+            BoolExpr p = ctx.mkBoolConst("p");
+            BoolExpr q = ctx.mkBoolConst("q");
+            BoolExpr r = ctx.mkBoolConst("r");
 
-    
-        SMTConnector connector = new SMTConnector();
-        Context ctx = connector.getContext();
+            // Create a simple formula with basic boolean relationships:
+            // 1. p -> q (if p is true, q must be true)
+            // 2. q <-> r (q and r are equivalent)
+            BoolExpr formula = ctx.mkAnd(
+                ctx.mkImplies(p, q),    // p -> q
+                ctx.mkIff(q, r)         // q <-> r
+            );
 
-        IntExpr x = ctx.mkIntConst("x");
-        IntExpr y = ctx.mkIntConst("y");
+            System.out.println("Test Formula:");
+            System.out.println("1. p -> q");
+            System.out.println("2. q <-> r");
+            System.out.println("\nThis formula has these properties:");
+            System.out.println("- p implies q, but not vice versa");
+            System.out.println("- q and r are equivalent (always have the same value)");
+            System.out.println("- due to q <-> r, p -> q is equivalent to p -> r");
+            System.out.println("\nOriginal formula: " + formula);
 
-        BoolExpr formula = ctx.mkAnd(
-            ctx.mkEq(x, ctx.mkInt(1)),
-            ctx.mkGt(y, ctx.mkInt(0)),
-            //ctx.mkEq(ctx.mkInt(20), ctx.mkAdd(x,y)),
-            //ctx.mkLe(ctx.mkInt(4), ctx.mkAdd(x,y))
-            ctx.mkLe(ctx.mkAdd(x,y), ctx.mkInt(100))
-        );
-
-        ModelEnumerator enumerator = new ModelEnumerator(connector);
-        List<Model> models = enumerator.enumerateSolutions(formula, 2);
-
-        for (Model model : models)
-        {
-            System.out.println("Solution: " + model);
+            // Launch interactive analyzer
+            SMTConnector connector = new SMTConnector(ctx);
+            InteractiveAnalyzer analyzer = new InteractiveAnalyzer(connector);
+            analyzer.runInteractiveSession(formula);
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        // Launch the interactive analyzer session.
-        InteractiveAnalyzer analyzer = new InteractiveAnalyzer(connector);
-        analyzer.runInteractiveSession(formula);
-
-        // Clean up the context.
-        connector.close();
-        
     }
 }
 
