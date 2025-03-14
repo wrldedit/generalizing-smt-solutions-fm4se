@@ -6,51 +6,6 @@ package generalizing.smt.solutions.fm4se;
 import com.microsoft.z3.*;
 
 public class App {
-    /* public static void testBooleanFormula(Context ctx) {
-        // Create boolean variables
-        BoolExpr p = ctx.mkBoolConst("p");
-        BoolExpr q = ctx.mkBoolConst("q");
-        BoolExpr r = ctx.mkBoolConst("r");
-        BoolExpr s = ctx.mkBoolConst("s");
-        BoolExpr t = ctx.mkBoolConst("t");
-
-        // Create a more complex formula with various relationships:
-        // 1. t must always be true (fixed value)
-        // 2. p -> q (if p is true, q must be true)
-        // 3. q -> r (if q is true, r must be true)
-        // 4. r -> s (if r is true, s must be true)
-        // 5. s -> p (if s is true, p must be true) - creates a cycle
-        // This means if any one of {p,q,r,s} is true, all must be true
-        // Combined with t being always true
-        BoolExpr formula = ctx.mkAnd(
-            t,                          // t is always true
-            ctx.mkImplies(p, q),       // p -> q
-            ctx.mkImplies(q, r),       // q -> r
-            ctx.mkImplies(r, s),       // r -> s
-            ctx.mkImplies(s, p)        // s -> p (creates cycle)
-        );
-
-        System.out.println("=== Testing Boolean Formula ===");
-        System.out.println("Test Formula with Complex Relationships:");
-        System.out.println("1. t must be true (fixed value)");
-        System.out.println("2. p -> q (p implies q)");
-        System.out.println("3. q -> r (q implies r)");
-        System.out.println("4. r -> s (r implies s)");
-        System.out.println("5. s -> p (s implies p)");
-        System.out.println("\nThis formula has these properties:");
-        System.out.println("- t is always true (fixed value)");
-        System.out.println("- Due to the cycle of implications (p->q->r->s->p):");
-        System.out.println("  * Either all of {p,q,r,s} are true, or all are false");
-        System.out.println("  * If any one is true, all others must be true");
-        System.out.println("  * If any one is false, all others must be false");
-        System.out.println("\nOriginal formula: " + formula);
-
-        // Launch interactive analyzer for boolean formula
-        SMTConnector connector = new SMTConnector(ctx);
-        InteractiveAnalyzer analyzer = new InteractiveAnalyzer(connector);
-        analyzer.runInteractiveSession(formula);
-    } */
-
     public static void testIntegerFormula(Context ctx) {
         // Create integer variables
         IntExpr x = ctx.mkIntConst("x");
@@ -86,12 +41,6 @@ public class App {
 
     public static void main(String[] args) {
         try (Context ctx = new Context()) {
-            System.out.println("Choose which formula to test:");
-            System.out.println("1. Boolean Formula (Complex implications)");
-            System.out.println("2. Integer Formula (Simple intervals)");
-            
-            // For now, let's test both
-            //testBooleanFormula(ctx);
             testIntegerFormula(ctx);
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());

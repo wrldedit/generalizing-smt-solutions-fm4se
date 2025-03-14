@@ -27,22 +27,37 @@ public class BinarySearchIntegerStrategy implements IntegerStrategy {
     }
 
     @Override
-    public String analyzeIntegers(BoolExpr formula, Set<String> variables) {
-        StringBuilder result = new StringBuilder();
-        result.append("Binary Search Integer Strategy:\n");
-        result.append("Assumptions:\n");
-        result.append("- Variables have finite bounds\n");
-        result.append("- Initial search range: ±" + INITIAL_RANGE + "\n");
-        result.append("- Range expands exponentially until bounds are found\n\n");
-        
-        result.append("Found variable ranges:\n");
-        
-        // Analyze each variable independently
-        for (String varName : variables) {
-            Bounds bounds = findBounds(formula, varName);
-            result.append(String.format("%s: [%d, %d]\n", varName, bounds.lower, bounds.upper));
+    public String analyzeIntegers(BoolExpr formula, Set<String> variableNames) {
+        Context ctx = connector.getContext();
+        StringBuilder result = new StringBuilder("Binary Search Integer Strategy:\n");
+
+        // Get a model to use as starting point
+        Model model = connector.getSolution(formula);
+        if (model == null) {
+            return "No solution found for the formula.";
         }
-        
+
+        // Analyze each variable
+        for (String varName : variableNames) {
+            IntExpr variable = ctx.mkIntConst(varName);
+            
+            // Get starting value from model
+            Expr value = model.evaluate(variable, true);
+            if (value == null || !(value instanceof IntNum)) {
+                continue;
+            }
+            int startValue = ((IntNum)value).getInt();
+
+            // First find rough range using exponential expansion
+            int[] roughRange = findRoughRange(variable, formula, ctx, startValue);
+            
+            // Then refine bounds using binary search
+            int lowerBound = findLowerBoundBinary(variable, formula, ctx, roughRange[0], startValue);
+            int upperBound = findUpperBoundBinary(variable, formula, ctx, startValue, roughRange[1]);
+            
+            result.append(String.format("%s ∈ [%d, %d]\n", varName, lowerBound, upperBound));
+        }
+
         return result.toString();
     }
 
@@ -114,42 +129,5 @@ public class BinarySearchIntegerStrategy implements IntegerStrategy {
         solver.add(formula);
         solver.add(ctx.mkEq(variable, ctx.mkInt(value)));
         return solver.check() == Status.SATISFIABLE;
-    }
-
-    private static class Bounds {
-        final int lower;
-        final int upper;
-        
-        Bounds(int lower, int upper) {
-            this.lower = lower;
-            this.upper = upper;
-        }
-    }
-
-    private Bounds findBounds(BoolExpr formula, String varName) {
-        Context ctx = connector.getContext();
-        IntExpr var = ctx.mkIntConst(varName);
-        
-        // Get a model to use as starting point
-        Model model = connector.getSolution(formula);
-        if (model == null) {
-            return new Bounds(0, 0); // Default if no solution found
-        }
-        
-        // Get starting value from model
-        Expr value = model.evaluate(var, true);
-        if (value == null || !(value instanceof IntNum)) {
-            return new Bounds(0, 0);
-        }
-        int startValue = ((IntNum)value).getInt();
-        
-        // First find rough range using exponential expansion
-        int[] roughRange = findRoughRange(var, formula, ctx, startValue);
-        
-        // Then refine bounds using binary search
-        int lowerBound = findLowerBoundBinary(var, formula, ctx, roughRange[0], startValue);
-        int upperBound = findUpperBoundBinary(var, formula, ctx, startValue, roughRange[1]);
-        
-        return new Bounds(lowerBound, upperBound);
     }
 } 
