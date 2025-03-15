@@ -20,6 +20,12 @@ repositories {
     }
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)  // Change to Java 17
+    }
+}
+
 dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
@@ -35,30 +41,9 @@ dependencies {
     implementation 'org.jfree:jfreechart:1.5.4'
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs = ['src/main/java']
-        }
-        resources {
-            srcDirs = ['src/main/resources', 'libs']
-        }
-        output.resourcesDir = file('build/classes/java/main')
-    }
-}
-
-// Apply a specific Java toolchain to ease working on different environments.
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 application {
     // Define the main class for the application.
-    mainClass.set('generalizing.smt.solutions.fm4se.App')
+    mainClass = 'generalizing.smt.solutions.fm4se.App'
 }
 
 tasks.named('test') {

@@ -19,6 +19,7 @@ import java.util.*;
  * @version 1.0
  */
 public class NaiveIntegerStrategy implements IntegerStrategy {
+    private static final int MAX_BOUND = 1000;  // Maximum search boundary
     private final SMTConnector connector;
 
     public NaiveIntegerStrategy(SMTConnector connector) {
@@ -35,10 +36,25 @@ public class NaiveIntegerStrategy implements IntegerStrategy {
         
         result.append("Found variable ranges:\n");
         
+        // Get initial model to find starting points
+        Model model = connector.getSolution(formula);
+        Context ctx = connector.getContext();
+        
         // Analyze each variable independently
         for (String varName : variables) {
-            int min = findMinValue(formula, varName);
-            int max = findMaxValue(formula, varName);
+            IntExpr var = ctx.mkIntConst(varName);
+            
+            // Get starting value from model or use 0 as default
+            int startValue = 0;
+            if (model != null) {
+                Expr value = model.evaluate(var, true);
+                if (value instanceof IntNum) {
+                    startValue = ((IntNum)value).getInt();
+                }
+            }
+            
+            int min = findLowerBound(var, formula, ctx, startValue);
+            int max = findUpperBound(var, formula, ctx, startValue);
             result.append(String.format("%s: [%d, %d]\n", varName, min, max));
         }
         
@@ -46,80 +62,78 @@ public class NaiveIntegerStrategy implements IntegerStrategy {
     }
 
     /**
-     * Finds the lowest possible value using linear expansion.
+     * Finds the lowest possible value by expanding downward from start value.
+     * @param variable The variable to find the bound for
+     * @param formula The formula containing constraints
+     * @param ctx The Z3 context
+     * @param startValue The value to start searching from
+     * @return The lowest satisfiable value found
      */
     private int findLowerBound(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
-        int lowerBound = startValue;
         Solver solver = ctx.mkSolver();
         solver.add(formula);
-
-        while (solver.check() == Status.SATISFIABLE) {
-            lowerBound--;
+        int currentValue = startValue;
+        
+        // First check if start value is satisfiable
+        solver.push();
+        solver.add(ctx.mkEq(variable, ctx.mkInt(currentValue)));
+        if (solver.check() != Status.SATISFIABLE) {
+            solver.pop();
+            return -MAX_BOUND; // Return minimum bound if start value not satisfiable
+        }
+        solver.pop();
+        
+        // Search downward until unsatisfiable value is found
+        while (currentValue > -MAX_BOUND) {
+            currentValue--;
             solver.push();
-            solver.add(ctx.mkEq(variable, ctx.mkInt(lowerBound)));
+            solver.add(ctx.mkEq(variable, ctx.mkInt(currentValue)));
+            
             if (solver.check() != Status.SATISFIABLE) {
                 solver.pop();
-                lowerBound++;
-                break;
+                return currentValue + 1; // Return last satisfiable value
             }
             solver.pop();
         }
-        return lowerBound;
+        
+        return -MAX_BOUND; // Return minimum bound if no unsatisfiable value found
     }
 
     /**
-     * Finds the highest possible value using linear expansion.
+     * Finds the highest possible value by expanding upward from start value.
+     * @param variable The variable to find the bound for
+     * @param formula The formula containing constraints
+     * @param ctx The Z3 context
+     * @param startValue The value to start searching from
+     * @return The highest satisfiable value found
      */
     private int findUpperBound(IntExpr variable, BoolExpr formula, Context ctx, int startValue) {
-        int upperBound = startValue;
         Solver solver = ctx.mkSolver();
         solver.add(formula);
-
-        while (solver.check() == Status.SATISFIABLE) {
-            upperBound++;
+        int currentValue = startValue;
+        
+        // First check if start value is satisfiable
+        solver.push();
+        solver.add(ctx.mkEq(variable, ctx.mkInt(currentValue)));
+        if (solver.check() != Status.SATISFIABLE) {
+            solver.pop();
+            return MAX_BOUND; // Return maximum bound if start value not satisfiable
+        }
+        solver.pop();
+        
+        // Search upward until unsatisfiable value is found
+        while (currentValue < MAX_BOUND) {
+            currentValue++;
             solver.push();
-            solver.add(ctx.mkEq(variable, ctx.mkInt(upperBound)));
+            solver.add(ctx.mkEq(variable, ctx.mkInt(currentValue)));
+            
             if (solver.check() != Status.SATISFIABLE) {
                 solver.pop();
-                upperBound--;
-                break;
+                return currentValue - 1; // Return last satisfiable value
             }
             solver.pop();
         }
-        return upperBound;
-    }
-
-    private int findMinValue(BoolExpr formula, String varName) {
-        Context ctx = connector.getContext();
-        IntExpr var = ctx.mkIntConst(varName);
-        int currentValue = -1000; // Start with a reasonable lower bound
         
-        while (true) {
-            BoolExpr test = ctx.mkAnd(formula, ctx.mkEq(var, ctx.mkInt(currentValue)));
-            if (connector.isSatisfiable(test)) {
-                return currentValue;
-            }
-            currentValue++;
-            if (currentValue > 1000) { // Safety check
-                return currentValue - 1;
-            }
-        }
-    }
-
-    private int findMaxValue(BoolExpr formula, String varName) {
-        Context ctx = connector.getContext();
-        IntExpr var = ctx.mkIntConst(varName);
-        int currentValue = 1000; // Start with a reasonable upper bound
-        
-        while (true) {
-            BoolExpr test = ctx.mkAnd(formula, ctx.mkEq(var, ctx.mkInt(currentValue)));
-            if (connector.isSatisfiable(test)) {
-                return currentValue;
-            }
-            currentValue--;
-            if (currentValue < -1000) { // Safety check
-                return currentValue + 1;
-            }
-        }
+        return MAX_BOUND; // Return maximum bound if no unsatisfiable value found
     }
 } 
