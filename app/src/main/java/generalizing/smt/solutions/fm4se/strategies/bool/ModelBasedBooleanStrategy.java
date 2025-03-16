@@ -5,9 +5,11 @@ import generalizing.smt.solutions.fm4se.SMTConnector;
 import java.util.*;
 
 /**
- * Simple model-based strategy that checks for:
- * 1. Fixed values (variables that are always true/false)
- * 2. Implications between variables using a finite set of models
+ * Model-based strategy that analyzes boolean formulas by examining solutions.
+ * The analysis follows these steps:
+ * 1. Generate all possible models (up to MAX_SOLUTIONS)
+ * 2. Analyze models to find fixed values
+ * 3. Analyze models to find implications between variables
  */
 public class ModelBasedBooleanStrategy implements BooleanStrategy {
     private final SMTConnector connector;
@@ -17,93 +19,202 @@ public class ModelBasedBooleanStrategy implements BooleanStrategy {
         this.connector = connector;
     }
 
+    @Override
     public String analyzeRelations(BoolExpr formula, Set<String> variables) {
-        Context ctx = connector.getContext();
         StringBuilder result = new StringBuilder();
         
-        result.append("Model-Based Analysis:\n");
-        result.append("Testing up to " + MAX_SOLUTIONS + " models...\n");
-
-        // Collect models
-        List<Map<String, Boolean>> solutions = collectSolutions(formula, variables, ctx);
-        if (solutions.isEmpty()) {
-            return result.append("No solutions found.").toString();
+        // Step 1: Generate models
+        List<Map<String, Boolean>> models = generateModels(formula, variables);
+        if (models.isEmpty()) {
+            return "No solutions found.";
         }
+        
+        // Step 2: Display results
+        result.append("Model-Based Analysis:\n");
+        result.append("Testing up to " + MAX_SOLUTIONS + " models...\n\n");
+        appendModels(result, models, variables);
+        
+        // Step 3: Analyze patterns
+        result.append("\nAnalysis Results:\n");
+        
+        // Find and display fixed values
+        Map<String, Boolean> fixedValues = findFixedValues(models, variables);
+        appendFixedValues(result, fixedValues);
+        
+        // Find and display implications
+        Map<String, List<String>> trueImplications = new HashMap<>();
+        Map<String, List<String>> falseImplications = new HashMap<>();
+        findImplications(models, variables, trueImplications, falseImplications);
+        appendImplications(result, trueImplications, falseImplications);
+        
+        return result.toString();
+    }
 
-        // Display models in compact format
-        result.append("Found ").append(solutions.size()).append(" satisfying models:\n");
-        for (int i = 0; i < solutions.size(); i++) {
-            Map<String, Boolean> solution = solutions.get(i);
-            result.append(String.format("[%d] {", i + 1));
+    private List<Map<String, Boolean>> generateModels(BoolExpr formula, Set<String> variables) {
+        List<Map<String, Boolean>> models = new ArrayList<>();
+        Context ctx = connector.getContext();
+        Solver solver = ctx.mkSolver();
+        solver.add(formula);
+        
+        int count = 0;
+        while (solver.check() == Status.SATISFIABLE && count < MAX_SOLUTIONS) {
+            // Extract current model
+            Map<String, Boolean> currentModel = extractValueAssignments(solver.getModel(), variables);
+            models.add(currentModel);
+            
+            // Block current model to find a different one
+            solver.add(buildBlockingConstraint(currentModel));
+            count++;
+        }
+        
+        return models;
+    }
+
+    private Map<String, Boolean> extractValueAssignments(Model model, Set<String> variables) {
+        Map<String, Boolean> assignments = new HashMap<>();
+        Context ctx = connector.getContext();
+        
+        for (String var : variables) {
+            BoolExpr varExpr = ctx.mkBoolConst(var);
+            Expr value = model.evaluate(varExpr, true);
+            assignments.put(var, value.equals(ctx.mkTrue()));
+        }
+        
+        return assignments;
+    }
+
+    private BoolExpr buildBlockingConstraint(Map<String, Boolean> model) {
+        Context ctx = connector.getContext();
+        List<BoolExpr> differentValues = new ArrayList<>();
+        
+        for (String varName : model.keySet()) {
+            boolean currentValue = model.get(varName);
+            BoolExpr var = ctx.mkBoolConst(varName);
+            
+            // Add constraint for opposite value:
+            // If current value is true, add (var = false)
+            // If current value is false, add (var = true)
+            if (currentValue == true) {
+                differentValues.add(ctx.mkNot(var));  // Force var to be false
+            } else {
+                differentValues.add(var);             // Force var to be true
+            }
+        }
+        
+        // At least one variable must be different
+        return ctx.mkOr(differentValues.toArray(new BoolExpr[0]));
+    }
+
+    private void appendModels(StringBuilder result, 
+                            List<Map<String, Boolean>> models, 
+                            Set<String> variables) {
+        result.append("Found ").append(models.size()).append(" satisfying models:\n");
+        
+        // Sort variables for consistent output
+        List<String> sortedVars = new ArrayList<>(variables);
+        Collections.sort(sortedVars);
+        
+        // Display each model
+        for (int i = 0; i < models.size(); i++) {
+            Map<String, Boolean> model = models.get(i);
+            result.append("[").append(i + 1).append("] {");
+            
             boolean first = true;
-            List<String> sortedVars = new ArrayList<>(variables);
-            Collections.sort(sortedVars);
             for (String var : sortedVars) {
-                if (!first) result.append(", ");
-                result.append(String.format("%s: %-5s", var, solution.get(var)));
+                if (!first) {
+                    result.append(", ");
+                }
+                result.append(var).append(": ");
+                result.append(model.get(var));
                 first = false;
             }
             result.append("}\n");
         }
         result.append("\n");
+    }
 
-        // Part 1: Check for fixed values
-        result.append("Analysis Results:\n");
-        result.append("Fixed Values:\n");
-        boolean foundFixed = false;
+    private Map<String, Boolean> findFixedValues(List<Map<String, Boolean>> models, 
+                                               Set<String> variables) {
+        Map<String, Boolean> fixedValues = new HashMap<>();
+        if (models.isEmpty()) {
+            return fixedValues;
+        }
+
+        // Check each variable
         for (String var : variables) {
-            Boolean firstValue = solutions.get(0).get(var);
+            // Get the value in the first model
+            boolean firstValue = models.get(0).get(var);
             boolean isFixed = true;
             
-            for (int i = 1; i < solutions.size(); i++) {
-                if (!solutions.get(i).get(var).equals(firstValue)) {
+            // Check if the value changes in any other model
+            for (int i = 1; i < models.size(); i++) {
+                boolean currentValue = models.get(i).get(var);
+                if (currentValue != firstValue) {
                     isFixed = false;
                     break;
                 }
             }
             
+            // If the value never changed, it's fixed
             if (isFixed) {
-                foundFixed = true;
-                result.append("  ").append(var).append(" is always ").append(firstValue ? "true" : "false").append("\n");
+                fixedValues.put(var, firstValue);
             }
         }
-        if (!foundFixed) {
-            result.append("  None found\n");
+        
+        return fixedValues;
+    }
+
+    private void findImplications(List<Map<String, Boolean>> models, 
+                                Set<String> variables,
+                                Map<String, List<String>> trueImplications,
+                                Map<String, List<String>> falseImplications) {
+        if (models.isEmpty()) {
+            return;
         }
 
-        // Part 2: Check for implications
-        result.append("\nImplications:\n");
-        boolean foundImplication = false;
-        
-        // Map from variable to its implications (both true and false)
-        Map<String, List<String>> trueImplications = new HashMap<>();
-        Map<String, List<String>> falseImplications = new HashMap<>();
-        
+        // Check each pair of variables
         for (String var1 : variables) {
             for (String var2 : variables) {
-                if (var1.equals(var2)) continue;
+                // Don't check a variable against itself
+                if (var1.equals(var2)) {
+                    continue;
+                }
                 
-                boolean impliesTrue = true;  // var1 true -> var2 true
-                boolean impliesFalse = true; // var1 true -> var2 false
+                boolean impliesTrue = true;
+                boolean impliesFalse = true;
                 
-                for (Map<String, Boolean> solution : solutions) {
-                    if (solution.get(var1)) { // Only check when var1 is true
-                        Boolean val2 = solution.get(var2);
-                        if (!val2) impliesTrue = false;
-                        if (val2) impliesFalse = false;
+                // Check each model
+                for (Map<String, Boolean> model : models) {
+                    boolean value1 = model.get(var1);
+                    boolean value2 = model.get(var2);
+                    
+                    // Only check implications when var1 is true
+                    if (value1) {
+                        // If we find a counterexample, the implication doesn't hold
+                        if (!value2) {
+                            impliesTrue = false;
+                        }
+                        if (value2) {
+                            impliesFalse = false;
+                        }
                         
-                        if (!impliesTrue && !impliesFalse) break;
+                        // If neither implication holds, we can stop checking
+                        if (!impliesTrue && !impliesFalse) {
+                            break;
+                        }
                     }
                 }
                 
+                // Add true implication if found
                 if (impliesTrue) {
-                    foundImplication = true;
                     if (!trueImplications.containsKey(var1)) {
                         trueImplications.put(var1, new ArrayList<>());
                     }
                     trueImplications.get(var1).add(var2);
-                } else if (impliesFalse) {
-                    foundImplication = true;
+                }
+                
+                // Add false implication if found
+                if (impliesFalse) {
                     if (!falseImplications.containsKey(var1)) {
                         falseImplications.put(var1, new ArrayList<>());
                     }
@@ -111,78 +222,98 @@ public class ModelBasedBooleanStrategy implements BooleanStrategy {
                 }
             }
         }
-
-        // Output consolidated implications
-        if (foundImplication) {
-            List<String> sortedVars = new ArrayList<>(variables);
-            Collections.sort(sortedVars);
-            
-            for (String var : sortedVars) {
-                List<String> trueList = trueImplications.get(var);
-                List<String> falseList = falseImplications.get(var);
-                
-                if (trueList != null && !trueList.isEmpty()) {
-                    Collections.sort(trueList);
-                    result.append("  ").append(var).append(" = true implies ");
-                    if (trueList.size() == 1) {
-                        result.append(trueList.get(0)).append(" = true\n");
-                    } else {
-                        result.append("all of {");
-                        result.append(String.join(", ", trueList));
-                        result.append("} = true\n");
-                    }
-                }
-                
-                if (falseList != null && !falseList.isEmpty()) {
-                    Collections.sort(falseList);
-                    result.append("  ").append(var).append(" = true implies ");
-                    if (falseList.size() == 1) {
-                        result.append(falseList.get(0)).append(" = false\n");
-                    } else {
-                        result.append("all of {");
-                        result.append(String.join(", ", falseList));
-                        result.append("} = false\n");
-                    }
-                }
-            }
-        } else {
-            result.append("  None found\n");
-        }
-
-        return result.toString();
     }
 
-    private List<Map<String, Boolean>> collectSolutions(BoolExpr formula, Set<String> variables, Context ctx) {
-        List<Map<String, Boolean>> solutions = new ArrayList<>();
-        Solver solver = ctx.mkSolver();
-        solver.add(formula);
+    private void appendFixedValues(StringBuilder result, Map<String, Boolean> fixedValues) {
+        result.append("Fixed Values:\n");
+        if (fixedValues.isEmpty()) {
+            result.append("  None found\n");
+            return;
+        }
+
+        // Sort variables for consistent output
+        List<String> sortedVars = new ArrayList<>(fixedValues.keySet());
+        Collections.sort(sortedVars);
         
-        int count = 0;
-        while (solver.check() == Status.SATISFIABLE && count < MAX_SOLUTIONS) {
-            Model model = solver.getModel();
-            Map<String, Boolean> solution = new HashMap<>();
-            
-            // Extract variable assignments
-            for (String var : variables) {
-                BoolExpr varExpr = ctx.mkBoolConst(var);
-                Expr value = model.evaluate(varExpr, true);
-                solution.put(var, value.equals(ctx.mkTrue()));
+        // Display each fixed value
+        for (String var : sortedVars) {
+            result.append("  ");
+            result.append(var);
+            result.append(" is always ");
+            if (fixedValues.get(var)) {
+                result.append("true");
+            } else {
+                result.append("false");
             }
-            
-            solutions.add(solution);
-            
-            // Block this solution
-            BoolExpr[] blockingTerms = solution.entrySet().stream()
-                .map(entry -> {
-                    BoolExpr varExpr = ctx.mkBoolConst(entry.getKey());
-                    return entry.getValue() ? ctx.mkNot(varExpr) : varExpr;
-                })
-                .toArray(BoolExpr[]::new);
-            
-            solver.add(ctx.mkOr(blockingTerms));
-            count++;
+            result.append("\n");
+        }
+    }
+
+    private void appendImplications(StringBuilder result,
+                                  Map<String, List<String>> trueImplications,
+                                  Map<String, List<String>> falseImplications) {
+        result.append("\nImplications:\n");
+        if (trueImplications.isEmpty() && falseImplications.isEmpty()) {
+            result.append("  None found\n");
+            return;
+        }
+
+        // Get all source variables and sort them
+        Set<String> allSources = new HashSet<>();
+        allSources.addAll(trueImplications.keySet());
+        allSources.addAll(falseImplications.keySet());
+        List<String> sortedSources = new ArrayList<>(allSources);
+        Collections.sort(sortedSources);
+        
+        // Display implications for each source variable
+        for (String source : sortedSources) {
+            // Display true implications
+            if (trueImplications.containsKey(source)) {
+                appendImplicationList(result, source, trueImplications.get(source), true);
+            }
+            // Display false implications
+            if (falseImplications.containsKey(source)) {
+                appendImplicationList(result, source, falseImplications.get(source), false);
+            }
+        }
+    }
+
+    private void appendImplicationList(StringBuilder result, String var, 
+                                    List<String> implications, boolean impliedValue) {
+        if (implications.isEmpty()) {
+            return;
         }
         
-        return solutions;
+        // Sort implications for consistent output
+        Collections.sort(implications);
+        
+        // Start the implication line
+        result.append("  ");
+        result.append(var);
+        result.append(" = true implies ");
+        
+        // For single implications
+        if (implications.size() == 1) {
+            result.append(implications.get(0));
+            result.append(" = ");
+            if (impliedValue) {
+                result.append("true");
+            } else {
+                result.append("false");
+            }
+            result.append("\n");
+        } 
+        // For multiple implications
+        else {
+            result.append("all of {");
+            result.append(String.join(", ", implications));
+            result.append("} = ");
+            if (impliedValue) {
+                result.append("true");
+            } else {
+                result.append("false");
+            }
+            result.append("\n");
+        }
     }
 } 

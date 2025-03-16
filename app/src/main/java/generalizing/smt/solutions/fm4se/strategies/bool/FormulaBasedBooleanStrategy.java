@@ -5,9 +5,10 @@ import generalizing.smt.solutions.fm4se.SMTConnector;
 import java.util.*;
 
 /**
- * Simple formula-based strategy that checks for:
- * 1. Fixed values (variables that are always true/false) by checking formula structure
- * 2. Implications between variables using counterexamples
+ * Formula-based strategy that analyzes boolean formulas by examining their structure.
+ * The analysis follows these steps:
+ * 1. Check each variable to find fixed values (must be true/false)
+ * 2. Check each pair of variables to find implications
  */
 public class FormulaBasedBooleanStrategy implements BooleanStrategy {
     private final SMTConnector connector;
@@ -16,73 +17,96 @@ public class FormulaBasedBooleanStrategy implements BooleanStrategy {
         this.connector = connector;
     }
 
+    @Override
     public String analyzeRelations(BoolExpr formula, Set<String> variables) {
-        Context ctx = connector.getContext();
         StringBuilder result = new StringBuilder();
-
+        
+        // Step 1: Display header
         result.append("Formula-Based Analysis:\n");
-        result.append("Testing all variables [");
+        appendVariableList(result, variables);
+        
+        // Step 2: Find fixed values
+        Map<String, Boolean> fixedValues = findFixedValues(formula, variables);
+        
+        // Step 3: Find implications
+        Map<String, List<String>> trueImplications = new HashMap<>();
+        Map<String, List<String>> falseImplications = new HashMap<>();
+        findImplications(formula, variables, trueImplications, falseImplications);
+        
+        // Step 4: Display results
+        result.append("\nAnalysis Results:\n");
+        appendFixedValues(result, fixedValues);
+        appendImplications(result, trueImplications, falseImplications);
+        
+        return result.toString();
+    }
+
+    private void appendVariableList(StringBuilder result, Set<String> variables) {
+        // Sort variables for consistent output
         List<String> sortedVars = new ArrayList<>(variables);
         Collections.sort(sortedVars);
+        
+        result.append("Analyzing variables: [");
         result.append(String.join(", ", sortedVars));
-        result.append("] for:\n");
-        result.append("- Fixed values (always true/false)\n");
-        result.append("- Direct implications (x -> y)\n");
-        result.append("- Bidirectional implications (x <-> y)\n\n");
+        result.append("]\n\n");
+    }
 
-        result.append("Analysis Results:\n");
-        // Part 1: Check for fixed values
-        result.append("Fixed Values:\n");
-        boolean foundFixed = false;
+    private Map<String, Boolean> findFixedValues(BoolExpr formula, Set<String> variables) {
+        Map<String, Boolean> fixedValues = new HashMap<>();
+        Context ctx = connector.getContext();
+        
+        // Check each variable
         for (String var : variables) {
             BoolExpr varExpr = ctx.mkBoolConst(var);
             
-            // Check if var must be true (formula ∧ ¬var is unsatisfiable)
+            // Check if var must be true
+            // This happens when (formula AND NOT var) is unsatisfiable
             if (isUnsatisfiable(ctx.mkAnd(formula, ctx.mkNot(varExpr)))) {
-                foundFixed = true;
-                result.append("  ").append(var).append(" is always true\n");
+                fixedValues.put(var, true);
                 continue;
             }
             
-            // Check if var must be false (formula ∧ var is unsatisfiable)
+            // Check if var must be false
+            // This happens when (formula AND var) is unsatisfiable
             if (isUnsatisfiable(ctx.mkAnd(formula, varExpr))) {
-                foundFixed = true;
-                result.append("  ").append(var).append(" is always false\n");
+                fixedValues.put(var, false);
             }
         }
-        if (!foundFixed) {
-            result.append("  None found\n");
-        }
+        
+        return fixedValues;
+    }
 
-        // Part 2: Check for implications
-        result.append("\nImplications:\n");
-        boolean foundImplication = false;
+    private void findImplications(BoolExpr formula, 
+                                Set<String> variables,
+                                Map<String, List<String>> trueImplications,
+                                Map<String, List<String>> falseImplications) {
+        Context ctx = connector.getContext();
         
-        // Map from variable to its implications (both true and false)
-        Map<String, List<String>> trueImplications = new HashMap<>();
-        Map<String, List<String>> falseImplications = new HashMap<>();
-        
+        // Check each pair of variables
         for (String var1 : variables) {
             for (String var2 : variables) {
-                if (var1.equals(var2)) continue;
+                // Don't check a variable against itself
+                if (var1.equals(var2)) {
+                    continue;
+                }
                 
-                BoolExpr v1 = ctx.mkBoolConst(var1);
-                BoolExpr v2 = ctx.mkBoolConst(var2);
+                BoolExpr expr1 = ctx.mkBoolConst(var1);
+                BoolExpr expr2 = ctx.mkBoolConst(var2);
                 
-                // Check if v1 true implies v2 true
-                // (formula ∧ v1 ∧ ¬v2 is unsatisfiable)
-                if (isUnsatisfiable(ctx.mkAnd(formula, v1, ctx.mkNot(v2)))) {
-                    foundImplication = true;
+                // Check if var1 true implies var2 true
+                // This happens when (formula AND var1 AND NOT var2) is unsatisfiable
+                if (isUnsatisfiable(ctx.mkAnd(formula, expr1, ctx.mkNot(expr2)))) {
+                    // Add to true implications
                     if (!trueImplications.containsKey(var1)) {
                         trueImplications.put(var1, new ArrayList<>());
                     }
                     trueImplications.get(var1).add(var2);
                 }
                 
-                // Check if v1 true implies v2 false
-                // (formula ∧ v1 ∧ v2 is unsatisfiable)
-                if (isUnsatisfiable(ctx.mkAnd(formula, v1, v2))) {
-                    foundImplication = true;
+                // Check if var1 true implies var2 false
+                // This happens when (formula AND var1 AND var2) is unsatisfiable
+                else if (isUnsatisfiable(ctx.mkAnd(formula, expr1, expr2))) {
+                    // Add to false implications
                     if (!falseImplications.containsKey(var1)) {
                         falseImplications.put(var1, new ArrayList<>());
                     }
@@ -90,45 +114,99 @@ public class FormulaBasedBooleanStrategy implements BooleanStrategy {
                 }
             }
         }
+    }
 
-        // Output consolidated implications
-        if (foundImplication) {
-            List<String> varsForImplications = new ArrayList<>(variables);
-            Collections.sort(varsForImplications);
-            
-            for (String var : varsForImplications) {
-                List<String> trueList = trueImplications.get(var);
-                List<String> falseList = falseImplications.get(var);
-                
-                if (trueList != null && !trueList.isEmpty()) {
-                    Collections.sort(trueList);
-                    result.append("  ").append(var).append(" = true implies ");
-                    if (trueList.size() == 1) {
-                        result.append(trueList.get(0)).append(" = true\n");
-                    } else {
-                        result.append("all of {");
-                        result.append(String.join(", ", trueList));
-                        result.append("} = true\n");
-                    }
-                }
-                
-                if (falseList != null && !falseList.isEmpty()) {
-                    Collections.sort(falseList);
-                    result.append("  ").append(var).append(" = true implies ");
-                    if (falseList.size() == 1) {
-                        result.append(falseList.get(0)).append(" = false\n");
-                    } else {
-                        result.append("all of {");
-                        result.append(String.join(", ", falseList));
-                        result.append("} = false\n");
-                    }
-                }
-            }
-        } else {
+    private void appendFixedValues(StringBuilder result, Map<String, Boolean> fixedValues) {
+        result.append("Fixed Values:\n");
+        if (fixedValues.isEmpty()) {
             result.append("  None found\n");
+            return;
         }
 
-        return result.toString();
+        // Sort variables for consistent output
+        List<String> sortedVars = new ArrayList<>(fixedValues.keySet());
+        Collections.sort(sortedVars);
+        
+        // Display each fixed value
+        for (String var : sortedVars) {
+            result.append("  ");
+            result.append(var);
+            result.append(" is always ");
+            if (fixedValues.get(var)) {
+                result.append("true");
+            } else {
+                result.append("false");
+            }
+            result.append("\n");
+        }
+    }
+
+    private void appendImplications(StringBuilder result,
+                                  Map<String, List<String>> trueImplications,
+                                  Map<String, List<String>> falseImplications) {
+        result.append("\nImplications:\n");
+        if (trueImplications.isEmpty() && falseImplications.isEmpty()) {
+            result.append("  None found\n");
+            return;
+        }
+
+        // Get all source variables and sort them
+        Set<String> allSources = new HashSet<>();
+        allSources.addAll(trueImplications.keySet());
+        allSources.addAll(falseImplications.keySet());
+        List<String> sortedSources = new ArrayList<>(allSources);
+        Collections.sort(sortedSources);
+        
+        // Display implications for each source variable
+        for (String source : sortedSources) {
+            // Display true implications
+            if (trueImplications.containsKey(source)) {
+                appendImplicationList(result, source, trueImplications.get(source), true);
+            }
+            // Display false implications
+            if (falseImplications.containsKey(source)) {
+                appendImplicationList(result, source, falseImplications.get(source), false);
+            }
+        }
+    }
+
+    private void appendImplicationList(StringBuilder result, String var, 
+                                    List<String> implications, boolean impliedValue) {
+        if (implications.isEmpty()) {
+            return;
+        }
+        
+        // Sort implications for consistent output
+        Collections.sort(implications);
+        
+        // Start the implication line
+        result.append("  ");
+        result.append(var);
+        result.append(" = true implies ");
+        
+        // For single implications
+        if (implications.size() == 1) {
+            result.append(implications.get(0));
+            result.append(" = ");
+            if (impliedValue) {
+                result.append("true");
+            } else {
+                result.append("false");
+            }
+            result.append("\n");
+        } 
+        // For multiple implications
+        else {
+            result.append("all of {");
+            result.append(String.join(", ", implications));
+            result.append("} = ");
+            if (impliedValue) {
+                result.append("true");
+            } else {
+                result.append("false");
+            }
+            result.append("\n");
+        }
     }
 
     private boolean isUnsatisfiable(BoolExpr expr) {

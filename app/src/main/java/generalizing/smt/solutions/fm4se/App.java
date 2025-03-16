@@ -4,33 +4,62 @@
 package generalizing.smt.solutions.fm4se;
 
 import com.microsoft.z3.*;
+import generalizing.smt.solutions.fm4se.strategies.bool.*;
+import java.util.*;
 
 public class App {
+    public static void testBooleanFormula(Context ctx) {
+        // Create boolean variables
+        BoolExpr a = ctx.mkBoolConst("a");
+        BoolExpr b = ctx.mkBoolConst("b");
+
+        // Create a simple formula: (a => b) AND a
+        // This formula means:
+        // 1. If a is true, then b must be true (a => b)
+        // 2. a must be true
+        // Therefore, both a and b must be true
+        BoolExpr formula = ctx.mkAnd(
+            ctx.mkImplies(a, b),  // a => b
+            a                     // a must be true
+        );
+
+        System.out.println("\n=== Testing Boolean Formula ===");
+        System.out.println("Simple Boolean Formula:");
+        System.out.println("1. If a is true, then b must be true (a => b)");
+        System.out.println("2. a must be true");
+        System.out.println("\nExpected properties:");
+        System.out.println("- a must be true (fixed value)");
+        System.out.println("- b must be true (due to implication)");
+        System.out.println("\nOriginal formula: " + formula);
+
+        // Launch interactive analyzer for boolean formula
+        SMTConnector connector = new SMTConnector(ctx);
+        InteractiveAnalyzer analyzer = new InteractiveAnalyzer(connector);
+        analyzer.runInteractiveSession(formula);
+    }
+
     public static void testIntegerFormula(Context ctx) {
         // Create integer variables
         IntExpr x = ctx.mkIntConst("x");
         IntExpr y = ctx.mkIntConst("y");
 
-        // Create a simple formula with integer constraints:
-        // 1. x must be between 0 and 10: 0 <= x <= 10
+        // Create a simple formula:
+        // 1. x must be between 0 and 5: 0 <= x <= 5
         // 2. y must be greater than x: y > x
-        // 3. y must be less than x + 5: y < x + 5
         BoolExpr formula = ctx.mkAnd(
-            ctx.mkGe(x, ctx.mkInt(0)),     // x >= 0
-            ctx.mkLe(x, ctx.mkInt(10)),    // x <= 10
-            ctx.mkGt(y, x),                // y > x
-            ctx.mkLt(y, ctx.mkAdd(x, ctx.mkInt(5)))  // y < x + 5
+            ctx.mkGe(x, ctx.mkInt(0)),  // x >= 0
+            ctx.mkLe(x, ctx.mkInt(5)),  // x <= 5
+            ctx.mkGt(y, x)              // y > x
         );
 
         System.out.println("\n=== Testing Integer Formula ===");
-        System.out.println("Test Formula with Integer Constraints:");
-        System.out.println("1. 0 <= x <= 10");
-        System.out.println("2. y > x");
-        System.out.println("3. y < x + 5");
-        System.out.println("\nThis formula has these properties:");
-        System.out.println("- x is bounded between 0 and 10");
-        System.out.println("- y must be greater than x but less than x + 5");
-        System.out.println("- For each value of x, y has a specific valid interval");
+        System.out.println("Simple Integer Formula:");
+        System.out.println("1. x must be between 0 and 5: 0 <= x <= 5");
+        System.out.println("2. y must be greater than x: y > x");
+        System.out.println("\nExpected properties:");
+        System.out.println("- x is bounded between 0 and 5");
+        System.out.println("- y must be greater than x (no upper bound)");
+        System.out.println("- For each value of x, y has a specific minimum value (x + 1)");
         System.out.println("\nOriginal formula: " + formula);
 
         // Launch interactive analyzer for integer formula
@@ -41,6 +70,7 @@ public class App {
 
     public static void main(String[] args) {
         try (Context ctx = new Context()) {
+            testBooleanFormula(ctx);
             testIntegerFormula(ctx);
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
