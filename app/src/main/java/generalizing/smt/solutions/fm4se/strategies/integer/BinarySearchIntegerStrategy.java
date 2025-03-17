@@ -55,7 +55,7 @@ public class BinarySearchIntegerStrategy implements IntegerStrategy {
             int lowerBound = findLowerBoundBinary(variable, formula, ctx, roughRange[0], startValue);
             int upperBound = findUpperBoundBinary(variable, formula, ctx, startValue, roughRange[1]);
             
-            result.append(String.format("%s ∈ [%d, %d]\n", varName, lowerBound, upperBound));
+            result.append(String.format("%s: [%d, %d]\n", varName, lowerBound, upperBound));
         }
 
         return result.toString();
@@ -79,13 +79,31 @@ public class BinarySearchIntegerStrategy implements IntegerStrategy {
                 break;
             }
             
+            // Prevent integer overflow by checking bounds
             if (lowerSat) {
-                lower -= step;
+                // Check if next step would cause overflow
+                if (lower > Integer.MIN_VALUE + step) {
+                    lower -= step;
+                } else {
+                    lower = Integer.MIN_VALUE;
+                }
             }
             if (upperSat) {
-                upper += step;
+                // Check if next step would cause overflow
+                if (upper < Integer.MAX_VALUE - step) {
+                    upper += step;
+                } else {
+                    upper = Integer.MAX_VALUE;
+                }
             }
-            step *= 2;
+            
+            // Double step size but prevent overflow
+            if (step <= Integer.MAX_VALUE / 2) {
+                step *= 2;
+            } else {
+                // If we can't double step anymore, we've reached maximum range
+                break;
+            }
         }
         
         return new int[]{lower, upper};

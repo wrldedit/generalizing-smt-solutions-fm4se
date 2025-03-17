@@ -2,8 +2,6 @@
 
 This repository implements a framework for generalizing SMT solutions.
 
-*--to be extended--*
-
 *This work is conducted in partial fulfillment of the module **"Formal Methods for Software Engineering"** at the **Bauhaus University Weimar** (Winter Semester 2024).*
 
 ## Overview
@@ -13,42 +11,59 @@ SMT solvers typically produce single solutions (models) for satisfiable SMT prob
 1) Develops meaningful descriptions of multiple solutions / generalizations,
 2) Finds and implements algorithms to verify whether generalizations hold for a given formula,
 3) Tests the algorithms with a comprehensive test suite,
-4) ...
+4) Provides interactive analysis tools for exploring formula properties
 
 ## Implementation Roadmap Checklist
 
 - [x] Z3 Setup and Integration
 - [x] Model Enumeration
 - [x] First Set of Descriptions
-  - [x] Fixed Value Verification
   - [x] Boolean (Always, Never True) Verification
   - [x] Interval Verification
-- [ ] Description Test Cases
-  - [ ] Fixed Value Test Cases
-  - [ ] Boolean Test Cases
-  - [ ] Interval Test Cases
-- [ ] Second Set of Descriptions
-  - [ ] Conditional Invariants
-  - [ ] ...
-- [ ] Second Set of Test Cases
+- [x] Description Test Cases
+  - [x] Fixed Value Test Cases
+  - [x] Boolean Test Cases
+- [x] User Interaction  
+- [x] Interval Detection
+  - [x] Naive / Brute Force
+  - [x] Binary Search
+- [x] Further Testing
+  - [x] Interval Testing
+  - [x] Performance Testing
 
 ## Project Structure
 
-smt-generalization/
-├── src/
-│   └── main/java/com/example/smt
-│      ├── SMTConnector.java                          // Manages the Z3 context and formula checks
-│      ├── InteractiveAnalyzer.java                   // Interactive interface for candidate invariant testing
-│      ├── Main.java                                  // Application entry point
-│      ├── ModelEnumerator.java                       // (Optional) Enumerates models for user intuition
-│      ├── GeneralizationResult.java                  // Data structure for invariant check results
-│      ├── FormulaBasedGeneralizationStrategy.java    // Interface for formula-based strategies
-│      ├── CandidateInvariant.java                    // Encapsulates candidate invariants and produces negation formulas
-│      ├── FixedValueFormulaStrategy.java             // Verifies fixed value invariants
-│      ├── AlwaysTrueFalseFormulaStrategy.java        // Verifies Boolean invariants
-│      └── IntervalFormulaStrategy.java               // Verifies interval invariants
-└── test/
-    └── java/                                         // Test cases
+```
+app/src/main/java/generalizing/smt/solutions/fm4se/
+├── App.java                    # Main application class with examples
+├── SMTConnector.java           # Z3 solver interface
+├── InteractiveAnalyzer.java    # Interactive analysis session
+└── strategies/
+    ├── bool/                   # Boolean analysis strategies
+    │   ├── BooleanStrategy.java
+    │   ├── ModelBasedBooleanStrategy.java
+    │   └── FormulaBasedBooleanStrategy.java
+    └── integer/                # Integer analysis strategies
+        ├── IntegerStrategy.java
+        ├── NaiveIntegerStrategy.java
+        └── BinarySearchIntegerStrategy.java
+```
+
+## Features
+
+### Boolean Analysis
+- **Model-Based Analysis**: Examines actual solutions to find patterns
+- **Formula-Based Analysis**: Analyzes logical structure to identify relationships
+- **Combined Analysis**: Uses both approaches for comprehensive results
+- Detects:
+  - Fixed values (variables that are always true/false)
+  - Implications between variables
+
+### Integer Analysis
+- **Naive Strategy**: Linear expansion
+- **Binary Search Strategy**: Exponential expansion + Binary Search
+- Detects:
+  - Variable bounds
 
 
 ## Project Setup
@@ -56,11 +71,29 @@ smt-generalization/
 *Note that Z3 is not available as a Maven dependency, so we need to manually add it to the project.*
 
 1. Download Z3 from [here](https://github.com/Z3Prover/z3)
-2. Update `build.gradle`: gradle implementation files ('path/to/your/com.microsoft.z3.jar'), applicationDefaultJvmArgs = ["-Djava.library.path=path/to/your/z3/bin"]
-3. Ensure Z3's native library `libz3.dll` (Windows) is in your system PATH or the specified `java.library.path`
-*to be extended*
+2. Create a `libs` directory in the `app` folder and copy:
+   - `com.microsoft.z3.jar` from Z3's Java bindings
+   - `libz3.dll` (Windows) or equivalent for your OS
+3. The project uses Gradle with the following key configurations:
+   ```gradle
+   // Dependencies
+   implementation 'org.sosy-lab:java-smt:3.14.3'
+   implementation files('libs/com.microsoft.z3.jar')
+   
+   // Java version
+   java {
+       toolchain {
+           languageVersion = JavaLanguageVersion.of(17)
+       }
+   }
+   
+   // Native library handling
+   systemProperty 'java.library.path', "${projectDir}/libs"
+   ```
 
-## Questions and Current Status
+The project automatically handles native library copying and path configuration through Gradle tasks.
+
+## To Dos
 
 1. Is there a desired output format?
    - SMT Formula vs. "representation in a single model-like structure"
@@ -72,9 +105,10 @@ smt-generalization/
 
 3. What are other interesting generalizations?
    - How to navigate the model / solution space?
+   - Current implementation includes implications and range relationships
+   - Future work could include more complex patterns
 
 4. What about performance?
    - Model Based vs Formula Based
-   - ...
-
-[Class Diagram to be inserted here]
+   - Linear vs Binary Search for integer analysis
+   - Current implementation shows binary search is more efficient for large ranges

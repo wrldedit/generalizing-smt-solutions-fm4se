@@ -27,172 +27,228 @@ public class BooleanStrategyTest {
         formulaStrategy = new FormulaBasedBooleanStrategy(connector);
     }
 
-    @Test
-    @DisplayName("Test fixed value: variable must be true")
-    void testFixedValueTrue() {
-        // Create formula: p AND (p OR q)
-        BoolExpr p = ctx.mkBoolConst("p");
-        BoolExpr q = ctx.mkBoolConst("q");
-        BoolExpr formula = ctx.mkAnd(p, ctx.mkOr(p, q));
+    // Fixed Value Tests
 
-        // Test model-based strategy
+    @Test
+    @DisplayName("Test direct fixed value: variable must be true")
+    void testDirectFixedValueTrue() {
+        // Formula: p
+        BoolExpr p = ctx.mkBoolConst("p");
+        BoolExpr formula = p;
+
         Set<String> variables = new HashSet<>();
         variables.add("p");
-        variables.add("q");
+        
         String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertTrue(modelResult.contains("p = true"), 
-            "Model-based strategy should detect p must be true");
-
-        // Test formula-based strategy
+        assertTrue(modelResult.contains("p is always true"), 
+            "Model strategy should detect p must be true");
+        
         String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertTrue(formulaResult.contains("p = true"),
-            "Formula-based strategy should detect p must be true");
+        assertTrue(formulaResult.contains("p is always true"),
+            "Formula strategy should detect p must be true");
     }
 
     @Test
-    @DisplayName("Test fixed value: variable must be false")
-    void testFixedValueFalse() {
-        // Create formula: (NOT p) AND (p OR q)
+    @DisplayName("Test direct fixed value: variable must be false")
+    void testDirectFixedValueFalse() {
+        // Formula: NOT p
         BoolExpr p = ctx.mkBoolConst("p");
-        BoolExpr q = ctx.mkBoolConst("q");
-        BoolExpr formula = ctx.mkAnd(ctx.mkNot(p), ctx.mkOr(p, q));
+        BoolExpr formula = ctx.mkNot(p);
 
-        // Test model-based strategy
         Set<String> variables = new HashSet<>();
         variables.add("p");
-        variables.add("q");
+        
         String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertTrue(modelResult.contains("p = false"), 
-            "Model-based strategy should detect p must be false");
-        assertTrue(modelResult.contains("q = true"), 
-            "Model-based strategy should detect q must be true");
-
-        // Test formula-based strategy
+        assertTrue(modelResult.contains("p is always false"), 
+            "Model strategy should detect p must be false");
+        
         String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertTrue(formulaResult.contains("p = false"),
-            "Formula-based strategy should detect p must be false");
-        assertTrue(formulaResult.contains("q = true"),
-            "Formula-based strategy should detect q must be true");
+        assertTrue(formulaResult.contains("p is always false"),
+            "Formula strategy should detect p must be false");
     }
 
     @Test
-    @DisplayName("Test implication: p implies q")
-    void testSimpleImplication() {
-        // Create formula: p AND (p -> q)
+    @DisplayName("Test indirect fixed value through conjunction")
+    void testIndirectFixedValueConjunction() {
+        // Formula: (p OR q) AND (NOT p)
+        // q must be true because p is false and (p OR q) must be true
+        BoolExpr p = ctx.mkBoolConst("p");
+        BoolExpr q = ctx.mkBoolConst("q");
+        BoolExpr formula = ctx.mkAnd(ctx.mkOr(p, q), ctx.mkNot(p));
+
+        Set<String> variables = new HashSet<>();
+        variables.add("p");
+        variables.add("q");
+        
+        String modelResult = modelStrategy.analyzeRelations(formula, variables);
+        assertTrue(modelResult.contains("p is always false"), 
+            "Model strategy should detect p must be false");
+        assertTrue(modelResult.contains("q is always true"), 
+            "Model strategy should detect q must be true");
+        
+        String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
+        assertTrue(formulaResult.contains("p is always false"),
+            "Formula strategy should detect p must be false");
+        assertTrue(formulaResult.contains("q is always true"),
+            "Formula strategy should detect q must be true");
+    }
+
+    @Test
+    @DisplayName("Test fixed value propagation through implication")
+    void testFixedValuePropagation() {
+        // Formula: p AND (p -> q)
+        // p is true directly, q becomes true through implication
         BoolExpr p = ctx.mkBoolConst("p");
         BoolExpr q = ctx.mkBoolConst("q");
         BoolExpr formula = ctx.mkAnd(p, ctx.mkImplies(p, q));
 
-        // Test model-based strategy
         Set<String> variables = new HashSet<>();
         variables.add("p");
         variables.add("q");
+        
         String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertTrue(modelResult.contains("p = true"), 
-            "Model-based strategy should detect p must be true");
-        assertTrue(modelResult.contains("q = true"), 
-            "Model-based strategy should detect q must be true");
-
-        // Test formula-based strategy
+        assertTrue(modelResult.contains("p is always true"), 
+            "Model strategy should detect p must be true");
+        assertTrue(modelResult.contains("q is always true"), 
+            "Model strategy should detect q must be true");
+        
         String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertTrue(formulaResult.contains("p = true"),
-            "Formula-based strategy should detect p must be true");
-        assertTrue(formulaResult.contains("q = true"),
-            "Formula-based strategy should detect q must be true");
+        assertTrue(formulaResult.contains("p is always true"),
+            "Formula strategy should detect p must be true");
+        assertTrue(formulaResult.contains("q is always true"),
+            "Formula strategy should detect q must be true");
+    }
+
+    // Implication Tests
+
+    @Test
+    @DisplayName("Test direct implication p → q")
+    void testDirectImplication() {
+        // Formula: p -> q
+        BoolExpr p = ctx.mkBoolConst("p");
+        BoolExpr q = ctx.mkBoolConst("q");
+        BoolExpr formula = ctx.mkImplies(p, q);
+
+        Set<String> variables = new HashSet<>();
+        variables.add("p");
+        variables.add("q");
+
+        // Test both strategies
+        String modelResult = modelStrategy.analyzeRelations(formula, variables);
+        String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
+
+        // Verify no fixed values
+        assertFalse(modelResult.contains("is always"), 
+            "Model strategy should not find fixed values");
+        assertFalse(formulaResult.contains("is always"), 
+            "Formula strategy should not find fixed values");
+
+        // Verify implication is detected
+        assertTrue(modelResult.contains("p = true implies q = true"), 
+            "Model strategy should detect p implies q");
+        assertTrue(formulaResult.contains("p = true implies q = true"), 
+            "Formula strategy should detect p implies q");
     }
 
     @Test
-    @DisplayName("Test transitive implications")
+    @DisplayName("Test implication with negated implying variable ¬p → q")
+    void testNegatedImplication() {
+        // Formula: (NOT p) -> q
+        BoolExpr p = ctx.mkBoolConst("p");
+        BoolExpr q = ctx.mkBoolConst("q");
+        BoolExpr formula = ctx.mkImplies(ctx.mkNot(p), q);
+
+        Set<String> variables = new HashSet<>();
+        variables.add("p");
+        variables.add("q");
+
+        // Test both strategies
+        String modelResult = modelStrategy.analyzeRelations(formula, variables);
+        String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
+
+        // Verify no fixed values
+        assertFalse(modelResult.contains("is always"), 
+            "Model strategy should not find fixed values");
+        assertFalse(formulaResult.contains("is always"), 
+            "Formula strategy should not find fixed values");
+
+        // Verify implication is detected
+        assertTrue(modelResult.contains("p = false implies q = true"), 
+            "Model strategy should detect not p implies q");
+        assertTrue(formulaResult.contains("p = false implies q = true"), 
+            "Formula strategy should detect not p implies q");
+    }
+
+    @Test
+    @DisplayName("Test transitive implications p → q → r")
     void testTransitiveImplications() {
-        // Create formula: p AND (p -> q) AND (q -> r)
+        // Formula: (p -> q) AND (q -> r)
         BoolExpr p = ctx.mkBoolConst("p");
         BoolExpr q = ctx.mkBoolConst("q");
         BoolExpr r = ctx.mkBoolConst("r");
         BoolExpr formula = ctx.mkAnd(
-            p,
             ctx.mkImplies(p, q),
             ctx.mkImplies(q, r)
         );
 
-        // Test model-based strategy
         Set<String> variables = new HashSet<>();
         variables.add("p");
         variables.add("q");
         variables.add("r");
-        String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertTrue(modelResult.contains("p = true"), 
-            "Model-based strategy should detect p must be true");
-        assertTrue(modelResult.contains("q = true"), 
-            "Model-based strategy should detect q must be true");
-        assertTrue(modelResult.contains("r = true"), 
-            "Model-based strategy should detect r must be true");
 
-        // Test formula-based strategy
+        // Test both strategies
+        String modelResult = modelStrategy.analyzeRelations(formula, variables);
         String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertTrue(formulaResult.contains("p = true"),
-            "Formula-based strategy should detect p must be true");
-        assertTrue(formulaResult.contains("q = true"),
-            "Formula-based strategy should detect q must be true");
-        assertTrue(formulaResult.contains("r = true"),
-            "Formula-based strategy should detect r must be true");
+
+        // Verify implications for model strategy
+        assertTrue(modelResult.contains("p = true implies all of {q, r} = true"), 
+            "Model strategy should detect p implies both q and r");
+        assertTrue(modelResult.contains("q = true implies r = true"), 
+            "Model strategy should detect q implies r");
+
+        // Verify implications for formula strategy
+        assertTrue(formulaResult.contains("p = true implies all of {q, r} = true"), 
+            "Formula strategy should detect p implies both q and r");
+        assertTrue(formulaResult.contains("q = true implies r = true"), 
+            "Formula strategy should detect q implies r");
     }
 
     @Test
-    @DisplayName("Test cyclic implications")
+    @DisplayName("Test cyclic implications p → q → r → p")
     void testCyclicImplications() {
-        // Create formula: p AND (p -> q) AND (q -> r) AND (r -> p)
+        // Formula: (p -> q) AND (q -> r) AND (r -> p)
         BoolExpr p = ctx.mkBoolConst("p");
         BoolExpr q = ctx.mkBoolConst("q");
         BoolExpr r = ctx.mkBoolConst("r");
         BoolExpr formula = ctx.mkAnd(
-            p,
             ctx.mkImplies(p, q),
             ctx.mkImplies(q, r),
             ctx.mkImplies(r, p)
         );
 
-        // Test model-based strategy
         Set<String> variables = new HashSet<>();
         variables.add("p");
         variables.add("q");
         variables.add("r");
+
+        // Test both strategies
         String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertTrue(modelResult.contains("p = true"), 
-            "Model-based strategy should detect p must be true");
-        assertTrue(modelResult.contains("q = true"), 
-            "Model-based strategy should detect q must be true");
-        assertTrue(modelResult.contains("r = true"), 
-            "Model-based strategy should detect r must be true");
-
-        // Test formula-based strategy
         String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertTrue(formulaResult.contains("p = true"),
-            "Formula-based strategy should detect p must be true");
-        assertTrue(formulaResult.contains("q = true"),
-            "Formula-based strategy should detect q must be true");
-        assertTrue(formulaResult.contains("r = true"),
-            "Formula-based strategy should detect r must be true");
-    }
 
-    @Test
-    @DisplayName("Test formula with no fixed values or implications")
-    void testNoConstraints() {
-        // Create formula: p OR q
-        BoolExpr p = ctx.mkBoolConst("p");
-        BoolExpr q = ctx.mkBoolConst("q");
-        BoolExpr formula = ctx.mkOr(p, q);
+        // Verify implications for model strategy
+        assertTrue(modelResult.contains("p = true implies all of {q, r} = true"), 
+            "Model strategy should detect p implies both q and r");
+        assertTrue(modelResult.contains("q = true implies all of {p, r} = true"), 
+            "Model strategy should detect q implies both p and r");
+        assertTrue(modelResult.contains("r = true implies all of {p, q} = true"), 
+            "Model strategy should detect r implies both p and q");
 
-        // Test model-based strategy
-        Set<String> variables = new HashSet<>();
-        variables.add("p");
-        variables.add("q");
-        String modelResult = modelStrategy.analyzeRelations(formula, variables);
-        assertFalse(modelResult.contains("= true") || modelResult.contains("= false"), 
-            "Model-based strategy should not detect any fixed values");
-
-        // Test formula-based strategy
-        String formulaResult = formulaStrategy.analyzeRelations(formula, variables);
-        assertFalse(formulaResult.contains("= true") || formulaResult.contains("= false"),
-            "Formula-based strategy should not detect any fixed values");
+        // Verify implications for formula strategy
+        assertTrue(formulaResult.contains("p = true implies all of {q, r} = true"), 
+            "Formula strategy should detect p implies both q and r");
+        assertTrue(formulaResult.contains("q = true implies all of {p, r} = true"), 
+            "Formula strategy should detect q implies both p and r");
+        assertTrue(formulaResult.contains("r = true implies all of {p, q} = true"), 
+            "Formula strategy should detect r implies both p and q");
     }
 } 

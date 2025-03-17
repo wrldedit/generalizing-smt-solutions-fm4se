@@ -29,12 +29,18 @@ public class InteractiveAnalyzer {
 
     /**
      * Constructs an InteractiveAnalyzer with the given SMTConnector.
-     * @param connector the SMTConnector providing the Z3 context and checking methods.
+     * @param connector the SMTConnector providing the Z3 context and checking methods
      */
     public InteractiveAnalyzer(SMTConnector connector) {
         this.connector = connector;
     }
 
+    /**
+     * Runs an interactive session for formula analysis.
+     * Presents a menu allowing users to choose between boolean and integer analysis.
+     * 
+     * @param formula The formula to analyze
+     */
     public void runInteractiveSession(BoolExpr formula) {
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
@@ -72,6 +78,13 @@ public class InteractiveAnalyzer {
         }
     }
     
+    /**
+     * Handles the boolean analysis strategy selection and execution.
+     * Offers three options: model-based, formula-based, or combined analysis.
+     * 
+     * @param formula The formula to analyze
+     * @param scanner The scanner for user input
+     */
     private void handleBooleanStrategies(BoolExpr formula, Scanner scanner) {
         System.out.println("\nSelect Analysis Strategy:");
         System.out.println("1. Solution Space Analysis (examines actual solutions)");
@@ -119,6 +132,13 @@ public class InteractiveAnalyzer {
         }
     }
 
+    /**
+     * Handles the integer analysis strategy selection and execution.
+     * Offers three options: linear search, binary search, or both strategies.
+     * 
+     * @param formula The formula to analyze
+     * @param scanner The scanner for user input
+     */
     private void handleIntervalStrategy(BoolExpr formula, Scanner scanner) {
         System.out.println("\nSelect Integer Analysis Strategy:");
         System.out.println("1. Linear Search (Simple but slower)");
@@ -172,7 +192,10 @@ public class InteractiveAnalyzer {
     }
 
     /**
-     * Extracts boolean variables from a formula.
+     * Extracts all boolean variables from a formula.
+     * 
+     * @param formula The formula to extract variables from
+     * @return A set of variable names found in the formula
      */
     private Set<String> extractVariables(BoolExpr formula) {
         Set<String> variables = new HashSet<>();
@@ -180,6 +203,12 @@ public class InteractiveAnalyzer {
         return variables;
     }
 
+    /**
+     * Recursively collects boolean variables from an expression.
+     * 
+     * @param expr The expression to collect variables from
+     * @param variables The set to store found variables
+     */
     private void collectVariables(Expr expr, Set<String> variables) {
         if (expr.isConst() && expr.isBool()) {
             String name = expr.toString();
@@ -193,7 +222,10 @@ public class InteractiveAnalyzer {
     }
 
     /**
-     * Extracts integer variables from a formula.
+     * Extracts all integer variables from a formula.
+     * 
+     * @param formula The formula to extract variables from
+     * @return A set of integer variable names found in the formula
      */
     private Set<String> extractIntegerVariables(BoolExpr formula) {
         Set<String> variables = new HashSet<>();
@@ -201,6 +233,12 @@ public class InteractiveAnalyzer {
         return variables;
     }
 
+    /**
+     * Recursively collects integer variables from an expression.
+     * 
+     * @param expr The expression to collect variables from
+     * @param variables The set to store found variables
+     */
     private void collectIntegerVariables(Expr expr, Set<String> variables) {
         if (expr.isConst() && expr.isInt()) {
             String name = expr.toString();

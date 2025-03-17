@@ -19,7 +19,7 @@ import java.util.*;
  * @version 1.0
  */
 public class NaiveIntegerStrategy implements IntegerStrategy {
-    private static final int MAX_BOUND = 1000;  // Maximum search boundary
+    private static final int MAX_BOUND = 1000000;  // Increased from 1000 to 1000000
     private final SMTConnector connector;
 
     public NaiveIntegerStrategy(SMTConnector connector) {
@@ -31,7 +31,7 @@ public class NaiveIntegerStrategy implements IntegerStrategy {
         StringBuilder result = new StringBuilder();
         result.append("Naive Integer Strategy (Linear Search):\n");
         result.append("Assumptions:\n");
-        result.append("- Variables have finite bounds within [-1000, 1000]\n");
+        result.append("- Variables have finite bounds within [-1000000, 1000000]\n");
         result.append("- Linear search from center outwards\n\n");
         
         result.append("Found variable ranges:\n");
